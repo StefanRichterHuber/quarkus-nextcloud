@@ -7,16 +7,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.quarkus.test.QuarkusDevModeTest;
-import io.quarkus.test.QuarkusUnitTest;
 
 public class NextcloudlibDevModeTest {
-    @RegisterExtension
-    static final QuarkusUnitTest config = new QuarkusUnitTest()
-            .overrideConfigKey("nextcloud.app-name", "testapp")
-            .overrideConfigKey("nextcloud.url", "http://localhost")
-            .overrideConfigKey("nextcloud.user", "testuser")
-            .overrideConfigKey("nextcloud.password", "secret");
-    // Start hot reload (DevMode) test with your extension loaded
+
     @RegisterExtension
     static final QuarkusDevModeTest devModeTest = new QuarkusDevModeTest()
             .setArchiveProducer(() -> ShrinkWrap.create(JavaArchive.class));

@@ -50,8 +50,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     /**
      * Sets a nextcloud admin user, if not set a default value is used
      *
-     * @param user
-     * @return
+     * @param user Nextcloud admin user
+     * @return This container for chaining
      */
     public NextcloudContainer withNextcloudUser(String user) {
         withEnv(ADMIN_USER_PROPERTY, user);
@@ -61,8 +61,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     /**
      * Sets a nextcloud admin password, if not set a random default value is used
      *
-     * @param user
-     * @return
+     * @param password Nextcloud admin password
+     * @return This container for chaining
      */
     public NextcloudContainer withNextcloudPassword(String password) {
         withEnv(ADMIN_PASSWORD_PROPERTY, password);
@@ -74,7 +74,7 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
      * the system is already running
      * 
      * @param app App to install
-     * @return
+     * @return This container for chaining
      */
     public NextcloudContainer withApp(String app) {
         occ("app:install", "-f", "--keep-disabled", app);
@@ -87,7 +87,7 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
      * the system is already running
      * 
      * @param apps List of apps to install
-     * @return
+     * @return This container for chaining
      */
     public NextcloudContainer withApps(Iterable<String> apps) {
         for (String app : apps) {
