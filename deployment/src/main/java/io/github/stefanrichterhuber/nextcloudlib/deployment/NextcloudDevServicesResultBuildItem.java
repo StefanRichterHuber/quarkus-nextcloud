@@ -23,6 +23,7 @@ public class NextcloudDevServicesResultBuildItem {
     private static final String SERVICE_IMAGE = "nextcloud:latest";
     private static final String ADMIN_USER = "admin";
     private static final String ADMIN_PASSWORD = RandomStringUtils.secure().nextAlphanumeric(12);
+    private static final int DEFAULT_LOG_LEVEL = 0; // 0 Debug, 1 Info, 2 Warning, 3 Error, 4 Fatal
 
     public static final String NEXTCLOUD_URL_PROPERTY = "nextcloud.url";
     public static final String NEXTCLOUD_USER_PROPERTY = "nextcloud.user";
@@ -48,6 +49,9 @@ public class NextcloudDevServicesResultBuildItem {
         final String password = ConfigProvider.getConfig()
                 .getOptionalValue("nextcloud.dev-services.password", String.class)
                 .orElse(ADMIN_PASSWORD);
+        final int logLevel = ConfigProvider.getConfig()
+                .getOptionalValue("nextcloud.dev-services.log-level", Integer.class)
+                .orElse(DEFAULT_LOG_LEVEL);
         final List<String> apps = ConfigProvider.getConfig()
                 .getOptionalValues("nextcloud.dev-services.apps", String.class)
                 .orElse(List.of());
@@ -56,6 +60,7 @@ public class NextcloudDevServicesResultBuildItem {
 
         final NextcloudContainer container = new NextcloudContainer(image, user, password);
         container.withApps(apps);
+        container.withLogLevel(logLevel);
 
         if (appApiSupport && !apps.contains("app_api")) {
             container.withApp("app_api");

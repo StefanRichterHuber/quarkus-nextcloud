@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import jakarta.annotation.Nonnull;
@@ -23,21 +25,40 @@ import jakarta.ws.rs.core.MediaType;
  */
 @RegisterClientHeaders(NextcloudAPIAdminClientHeaders.class)
 public interface NextcloudWebhookRestClient {
+    public static enum AuthMethod {
+        @JsonProperty("header")
+        HEADER,
+        @JsonProperty("none")
+        NONE,
+    }
+
+    public static enum HTTPMethod {
+        @JsonProperty("GET")
+        GET,
+        @JsonProperty("POST")
+        POST,
+        @JsonProperty("PUT")
+        PUT,
+        @JsonProperty("DELETE")
+        DELETE,
+        @JsonProperty("PATCH")
+        PATCH,
+    }
 
     public static record WebhookMessage(
             String id,
             String userId,
-            @Nonnull String httpMethod,
+            @Nonnull HTTPMethod httpMethod,
             @Nonnull String uri,
             @Nonnull String event,
             Map<String, Object> eventFilter,
             String userIdFilter,
             Map<String, Object> headers,
-            String authMethod,
+            AuthMethod authMethod,
             Map<String, Object> authData,
             TokenNeeded tokenNeeded) {
 
-        public record TokenNeeded(Map<String, String> user_ids, Map<String, String> user_roles) {
+        public record TokenNeeded(List<String> user_ids, List<String> user_roles) {
         }
     }
 

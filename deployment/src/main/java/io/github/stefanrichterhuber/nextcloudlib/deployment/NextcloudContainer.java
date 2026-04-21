@@ -83,6 +83,17 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     }
 
     /**
+     * Sets the log level of nextcloud, if not set a default value is used
+     * 
+     * @param logLevel 0 = Debug, 1 = Info, 2 = Warning, 3 = Error, 4 = Fatal
+     * @return This container for chaining
+     */
+    public NextcloudContainer withLogLevel(int logLevel) {
+        occ("config:system:set", "loglevel", "--value=" + logLevel, "--type=integer");
+        return this;
+    }
+
+    /**
      * Installs nextcloud apps in the container. Either on startup or immediatly if
      * the system is already running
      * 
