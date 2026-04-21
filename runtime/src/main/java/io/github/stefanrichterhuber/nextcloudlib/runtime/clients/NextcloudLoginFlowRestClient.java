@@ -12,7 +12,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 /**
- * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
+ * @see <a href=
+ *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
  */
 public interface NextcloudLoginFlowRestClient {
     public record InitiateLoginFlowV2Response(String login, Poll poll) {

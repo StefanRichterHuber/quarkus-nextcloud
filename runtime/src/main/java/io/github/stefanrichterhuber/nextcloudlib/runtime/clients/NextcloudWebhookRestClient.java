@@ -18,7 +18,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 /**
- * @see https://docs.nextcloud.com/server/latest/admin_manual/webhook_listeners/index.html
+ * @see <a href=
+ *      "https://docs.nextcloud.com/server/latest/admin_manual/webhook_listeners/index.html">https://docs.nextcloud.com/server/latest/admin_manual/webhook_listeners/index.html</a>
  */
 @RegisterClientHeaders(NextcloudAPIAdminClientHeaders.class)
 public interface NextcloudWebhookRestClient {
@@ -58,7 +59,7 @@ public interface NextcloudWebhookRestClient {
      * <br>
      * <b>Requires Admin privileges</b>
      * 
-     * @param webhookId
+     * @param webhookId the id of the webhook to get
      * @return
      */
     @GET
@@ -72,7 +73,7 @@ public interface NextcloudWebhookRestClient {
      * <br>
      * <b>Requires Admin privileges</b>
      * 
-     * @param webhook
+     * @param webhook the configuration of the webhook to register
      * @return
      */
     @POST
@@ -86,7 +87,8 @@ public interface NextcloudWebhookRestClient {
      * <br>
      * <b>Requires Admin privileges</b>
      * 
-     * @param webhook
+     * @param webhookId the id of the webhook to update
+     * @param webhook   the updated webhook configuration
      * @return
      */
     @POST
@@ -100,7 +102,7 @@ public interface NextcloudWebhookRestClient {
      * <br>
      * <b>Requires Admin privileges</b>
      * 
-     * @param webhook
+     * @param webhookId the id of the webhook to delete
      * @return
      */
     @DELETE

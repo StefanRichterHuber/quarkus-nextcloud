@@ -8,7 +8,8 @@ import com.github.sardine.Sardine;
 import jakarta.activation.DataSource;
 
 /**
- * @see https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client
+ * @see <a href=
+ *      "https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client">https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client</a>
  */
 public record FulltextSearchResult(
         List<Result> result,

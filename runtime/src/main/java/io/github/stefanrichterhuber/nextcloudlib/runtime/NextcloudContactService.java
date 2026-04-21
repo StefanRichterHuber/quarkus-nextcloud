@@ -74,8 +74,10 @@ public class NextcloudContactService {
      * 
      * @param addressbook Addressbook to fetch
      * @throws IOException
-     * @see https://sabre.io/dav/building-a-carddav-client/
-     * @see https://github.com/mangstadt/ez-vcard
+     * @see <a href=
+     *      "https://sabre.io/dav/building-a-carddav-client/">https://sabre.io/dav/building-a-carddav-client/</a>
+     *      * @see <a href=
+     *      "https://github.com/mangstadt/ez-vcard">https://github.com/mangstadt/ez-vcard</a>
      */
     public List<VCard> fetchContacts(@Nonnull Addressbook addressbook) throws IOException {
         if (addressbook == null) {
@@ -89,8 +91,10 @@ public class NextcloudContactService {
      * 
      * @param addressbook Name of the addressbook
      * @throws IOException
-     * @see https://sabre.io/dav/building-a-carddav-client/
-     * @see https://github.com/mangstadt/ez-vcard
+     * @see <a href=
+     *      "https://sabre.io/dav/building-a-carddav-client/">https://sabre.io/dav/building-a-carddav-client/</a>
+     *      * @see <a href=
+     *      "https://github.com/mangstadt/ez-vcard">https://github.com/mangstadt/ez-vcard</a>
      */
     public List<VCard> fetchContacts(@Nonnull String addressbook) throws IOException {
         if (addressbook == null || addressbook.isBlank()) {

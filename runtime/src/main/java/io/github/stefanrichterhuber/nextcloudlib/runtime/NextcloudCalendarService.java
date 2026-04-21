@@ -86,11 +86,11 @@ public class NextcloudCalendarService {
      * @param cal      Calendar entry to create
      * @throws IOException
      */
-    public void createCalendarEntry(Calendar webDavCalendar, ICalendar cal) throws IOException {
-        if (webDavCalendar == null) {
+    public void createCalendarEntry(Calendar calendar, ICalendar cal) throws IOException {
+        if (calendar == null) {
             throw new IllegalArgumentException("WebDavCalendar cannot be null");
         }
-        createCalendarEntry(webDavCalendar.name(), cal);
+        createCalendarEntry(calendar.name(), cal);
     }
 
     /**
@@ -161,7 +161,8 @@ public class NextcloudCalendarService {
      * @param end      Ende of the time range
      * @return List of {@link WebDavCalendar}
      * @throws IOException
-     * @see https://github.com/mangstadt/biweekly
+     * @see <a href=
+     *      "https://github.com/mangstadt/biweekly">https://github.com/mangstadt/biweekly</a>
      */
     public List<WebDavCalendar> fetchCalendar(@Nonnull Calendar calendar,
             @Nonnull ZonedDateTime start, @Nonnull ZonedDateTime end)
@@ -180,7 +181,8 @@ public class NextcloudCalendarService {
      * @param end      Ende of the time range
      * @return List of {@link WebDavCalendar}
      * @throws IOException
-     * @see https://github.com/mangstadt/biweekly
+     * @see <a href=
+     *      "https://github.com/mangstadt/biweekly">https://github.com/mangstadt/biweekly</a>
      */
     public List<WebDavCalendar> fetchCalendar(@Nonnull String calendar,
             @Nonnull ZonedDateTime start, @Nonnull ZonedDateTime end)

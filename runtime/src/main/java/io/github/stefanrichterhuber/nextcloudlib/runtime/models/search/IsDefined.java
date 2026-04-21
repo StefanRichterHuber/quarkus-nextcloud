@@ -7,6 +7,11 @@ public class IsDefined implements Condition {
 
     private final Value value;
 
+    /**
+     * Creates a new IsDefined condition for the given value
+     *
+     * @param value
+     */
     public IsDefined(Value value) {
         this.value = value;
     }

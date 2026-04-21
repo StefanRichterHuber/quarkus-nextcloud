@@ -171,11 +171,10 @@ public class NextcloudFileDiffService {
     /**
      * Applies the given patch to the given file and uploads the file again
      * 
-     * @param file      File to patch
-     * @param patch     Patch to apply
-     * @param lockToken Optional lock token to update a locked file
-     * @param fuzz      Fuzz factor for the patch. Roughly how many
-     *                  lines the patch definition can be off from the actual source
+     * @param file  File to patch
+     * @param patch Patch to apply
+     * @param fuzz  Fuzz factor for the patch. Roughly how many
+     *              lines the patch definition can be off from the actual source
      * @throws IOException
      * @throws PatchFailedException
      */
@@ -187,12 +186,12 @@ public class NextcloudFileDiffService {
     /**
      * Applies the given patch to the given file and uploads the file again
      * 
-     * @param file         File to patch
-     * @param patch        Patch to apply
-     * @param lockOptional lock to update a locked file
-     * @param fuzz         Fuzz factor for the patch. Roughly how many
-     *                     lines the patch definition can be off from the actual
-     *                     source
+     * @param file  File to patch
+     * @param patch Patch to apply
+     * @param fuzz  Fuzz factor for the patch. Roughly how many
+     *              lines the patch definition can be off from the actual
+     *              source
+     * @param lock  Optional Lock to transmit
      * @throws IOException
      * @throws PatchFailedException
      */

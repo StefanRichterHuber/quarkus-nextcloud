@@ -153,7 +153,8 @@ public class NextcloudFileService {
      * 
      * @param target Internal target path
      * @return List of files found
-     * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html</a>
      */
     private List<NextCloudFile> getFileByInternalPath(@Nonnull String target) throws IOException {
         final Set<QName> properties = Set.of( //
@@ -439,7 +440,8 @@ public class NextcloudFileService {
      * 
      * @param query Search query to execute, must not be null
      * @return FileQueryResult containing the result of the search
-     * @see https://docs.nextcloud.com/server/19/developer_manual/client_apis/WebDAV/search.html
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/19/developer_manual/client_apis/WebDAV/search.html">https://docs.nextcloud.com/server/19/developer_manual/client_apis/WebDAV/search.html</a>
      */
     public FileQueryResult search(@Nonnull Query query) throws IOException {
         final String fromPrefix = String.format("/files/%s/", this.getCurrentUser());
@@ -611,7 +613,6 @@ public class NextcloudFileService {
      * Deletes the file
      * 
      * @param path      Relative path of the file
-     * @param content   Content to upload
      * @param etag      Optional etag of the original content. If set, file delete
      *                  only
      *                  succeeds if ETAG matches ( file unchanged )
@@ -635,13 +636,12 @@ public class NextcloudFileService {
     /**
      * Deletes the file
      * 
-     * @param path    Relative path of the file
-     * @param content Content to upload
-     * @param etag    Optional etag of the original content. If set, file delete
-     *                only
-     *                succeeds if ETAG matches ( file unchanged )
-     * @param lock    Optional Lock to transmit to indicate we
-     *                handle this delete within an existing lock
+     * @param path Relative path of the file
+     * @param etag Optional etag of the original content. If set, file delete
+     *             only
+     *             succeeds if ETAG matches ( file unchanged )
+     * @param lock Optional Lock to transmit to indicate we
+     *             handle this delete within an existing lock
      * @throws IOException
      */
     public void deleteFile(String path, @Nullable String etag, @Nullable NextCloudFileLock lock)

@@ -6,7 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
- * @see https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client
+ * @see <a href=
+ *      "https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client">https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client</a>
  */
 @RegisterForReflection
 public record FulltextSearchQuery(String providers, String search, int page, int size, Options options) {

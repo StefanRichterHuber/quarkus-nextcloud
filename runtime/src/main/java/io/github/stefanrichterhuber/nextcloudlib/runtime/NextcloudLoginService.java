@@ -63,7 +63,8 @@ public class NextcloudLoginService {
     /**
      * Nextcloud login flow Token valid for max 20 minutes
      * 
-     * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
      */
     @Inject
     @ConfigProperty(name = "nextcloud.login-flow.token-max-time", defaultValue = "PT20M")
@@ -85,7 +86,8 @@ public class NextcloudLoginService {
      * @param appName Name of the app to use for the login flow (shown during the
      *                login process))
      * 
-     * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
      */
     public LoginFlowJob initiateLoginFlow(String server, String appName) {
         final NextcloudLoginFlowRestClient loginFlowClient = QuarkusRestClientBuilder.newBuilder()
@@ -128,7 +130,8 @@ public class NextcloudLoginService {
      *                        login flow and the token is valid, or to complete
      *                        exceptionally if the token expires
      * 
-     * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
      */
     private void pollLoginToken(NextcloudLoginFlowRestClient loginFlowClient,
             String token, String pollurl, Duration remainingTime,

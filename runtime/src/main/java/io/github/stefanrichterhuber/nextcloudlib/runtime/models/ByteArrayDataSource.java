@@ -8,6 +8,10 @@ import java.nio.file.Paths;
 
 import jakarta.activation.DataSource;
 
+/**
+ * A simple implementation of the DataSource interface that uses a byte array as
+ * the source of data.
+ */
 public class ByteArrayDataSource implements DataSource {
 
     /**
@@ -21,6 +25,15 @@ public class ByteArrayDataSource implements DataSource {
 
     private final byte[] content;
 
+    /**
+     * Creates a new ByteArrayDataSource with the given path, content type and
+     * content.
+     * 
+     * @param path        the path of the file, used to determine the file name
+     * @param contentType the content type of the file, e.g. "text/plain" or
+     *                    "application/pdf"
+     * @param content     the content of the file as a byte array
+     */
     public ByteArrayDataSource(String path, String contentType, byte[] content) {
         this.path = path;
         this.contentType = contentType;
