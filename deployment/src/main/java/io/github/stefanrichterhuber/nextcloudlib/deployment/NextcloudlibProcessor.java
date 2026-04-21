@@ -13,8 +13,8 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIClient
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.QueryIOInterceptor;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.SardineProvider;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.QueryIOInterceptor;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.AdditionalIndexedClassesBuildItem;

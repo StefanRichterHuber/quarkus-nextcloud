@@ -1,7 +1,8 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.models.search;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.clients;
 
 import java.io.IOException;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.ext.Provider;
 import jakarta.ws.rs.ext.WriterInterceptor;
