@@ -10,6 +10,18 @@ Main Features:
 * Nextcloud Instance as dev service with configurable apps installed
 * Unified authentication system
 
+## How to use
+
+To use the library, add the following Maven dependency to your `pom.xml`. Replace `[current version]` with the appropriate version number.
+
+```xml
+<dependency>
+    <groupId>io.github.stefanrichterhuber</groupId>
+    <artifactId>nextcloudlib</artifactId>
+    <version>[current version]</version>
+</dependency>
+```
+
 ## Features
 
 ### Authentication
