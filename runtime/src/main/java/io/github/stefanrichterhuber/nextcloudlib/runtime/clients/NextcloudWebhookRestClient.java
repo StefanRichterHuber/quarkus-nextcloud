@@ -5,7 +5,10 @@ import java.util.Map;
 
 import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
@@ -45,20 +48,56 @@ public interface NextcloudWebhookRestClient {
         PATCH,
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static record WebhookMessage(
             String id,
+            String appId,
             String userId,
             @Nonnull HTTPMethod httpMethod,
             @Nonnull String uri,
             @Nonnull String event,
-            Map<String, Object> eventFilter,
+            JsonNode eventFilter,
             String userIdFilter,
-            Map<String, Object> headers,
+            Map<String, String> headers,
             AuthMethod authMethod,
-            Map<String, Object> authData,
+            JsonNode authData,
             TokenNeeded tokenNeeded) {
 
         public record TokenNeeded(List<String> user_ids, List<String> user_roles) {
+        }
+
+        /**
+         * Factory method to create a WebhookMessage for registry requests. This is used
+         * to create a WebhookMessage with the necessary fields for registry requests,
+         * while ignoring the fields that are not needed for registry requests (like id,
+         * appId, userId).
+         * 
+         * @param method
+         * @param uri
+         * @param event
+         * @param headers
+         * @param authMethod
+         * @param authData
+         * @param tokenNeeded
+         * @return
+         */
+        public static WebhookMessage createRegistryRequest(HTTPMethod method, String uri, String event,
+                Map<String, String> headers,
+                AuthMethod authMethod, Map<String, String> authData, TokenNeeded tokenNeeded) {
+            final ObjectMapper mapper = new ObjectMapper();
+            return new WebhookMessage(
+                    null,
+                    null,
+                    null,
+                    method,
+                    uri,
+                    event,
+                    null,
+                    null,
+                    headers,
+                    authMethod,
+                    mapper.valueToTree(authData),
+                    tokenNeeded);
         }
     }
 
