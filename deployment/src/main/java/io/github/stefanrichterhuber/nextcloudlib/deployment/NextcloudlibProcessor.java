@@ -6,6 +6,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffServic
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudSystemTagService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAdminAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
@@ -57,6 +58,7 @@ class NextcloudlibProcessor {
                 .addBeanClass(ConfiguredNextcloudAuthProvider.class)
                 .addBeanClass(NextcloudAPIClientHeaders.class)
                 .addBeanClass(NextcloudFileDiffService.class)
+                .addBeanClass(NextcloudUserService.class)
                 .addBeanClass(NextcloudAPIAdminClientHeaders.class).build();
     }
 }

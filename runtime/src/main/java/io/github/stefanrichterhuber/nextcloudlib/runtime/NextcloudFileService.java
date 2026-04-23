@@ -292,6 +292,9 @@ public class NextcloudFileService {
         if (file == null) {
             return null;
         }
+        if (file.dataSource() instanceof ByteArrayDataSource) {
+            return file;
+        }
         String etag = file.etag();
         String contentType = file.dataSource().getContentType();
         Date modDate = file.modified();

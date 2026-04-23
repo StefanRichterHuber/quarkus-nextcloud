@@ -57,10 +57,16 @@ public class NextcloudDevServicesResultBuildItem {
                 .orElse(List.of());
         final Boolean appApiSupport = ConfigProvider.getConfig()
                 .getOptionalValue("nextcloud.ex-app", Boolean.class).orElse(false);
+        final Boolean webhookWorkerEnabled = ConfigProvider.getConfig()
+                .getOptionalValue("nextcloud.dev-services.enable-webhook-worker", Boolean.class)
+                .orElse(false);
 
         final NextcloudContainer container = new NextcloudContainer(image, user, password);
         container.withApps(apps);
         container.withLogLevel(logLevel);
+        if (webhookWorkerEnabled) {
+            container.withEnableWebhookWorker();
+        }
 
         if (appApiSupport && !apps.contains("app_api")) {
             container.withApp("app_api");

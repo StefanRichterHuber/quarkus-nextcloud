@@ -3,6 +3,7 @@ package io.github.stefanrichterhuber.nextcloudlib.deployment;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
@@ -23,7 +24,14 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     private static final String ADMIN_USER_PROPERTY = "NEXTCLOUD_ADMIN_USER";
     private static final String SQLITE_DATABASE_PROPERTY = "SQLITE_DATABASE";
 
+    private static final String[] OCC_COMMAND_WEBHOOK_CALL = { "background-job:worker", "-v", "-t", "20",
+            "OCA\\WebhookListeners\\BackgroundJobs\\WebhookCall" };
+
     private final List<String> startupScripts = new ArrayList<>();
+
+    private boolean webhookWorkerEnabled = false;
+    private final ScheduledExecutorService executorService = java.util.concurrent.Executors
+            .newSingleThreadScheduledExecutor();
 
     public NextcloudContainer(final String image) {
         this(image, ADMIN_USER, ADMIN_PASSWORD);
@@ -108,6 +116,21 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     }
 
     /**
+     * Enables a background worker for webhook calls. This is necessary to receive
+     * webhooks in a timely manner.
+     * 
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/webhook_listeners/index.html">Webhook
+     *      Listeners</a>
+     * @return This container for chaining
+     */
+    public NextcloudContainer withEnableWebhookWorker() {
+        log.info("Enabling webhook worker for timely processing of webhooks.");
+        this.webhookWorkerEnabled = true;
+        return this;
+    }
+
+    /**
      * Creates the startup script and copies into the correct location, afterwarts
      * the container is booted
      */
@@ -124,6 +147,14 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
         }
 
         super.start();
+        if (webhookWorkerEnabled) {
+            // Start webhook worker in background
+            executorService.schedule(() -> {
+                while (isRunning()) {
+                    occ(OCC_COMMAND_WEBHOOK_CALL);
+                }
+            }, 20, java.util.concurrent.TimeUnit.SECONDS);
+        }
     }
 
     /**
