@@ -42,6 +42,7 @@ Several CDI services are provided for convenient access to several Nextcloud mod
 * `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService` for file access
 * `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService` for calendar access
 * `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService` for contacts access
+* `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService` for accessing user information
 * `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService` to perfom the Nextcloud [LoginFlow V2]( https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html). Necessary to obtain an app password per user for all other operations
 * `io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudSystemTagService` to add / remove global System tags on files
 
