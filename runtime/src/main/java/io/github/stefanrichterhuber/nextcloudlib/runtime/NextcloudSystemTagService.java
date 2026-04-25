@@ -16,7 +16,7 @@ import com.github.sardine.Sardine;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient.CreateSystemTagRequest;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.annotation.Nonnull;
@@ -91,7 +91,7 @@ public class NextcloudSystemTagService {
      * @return {@link List} of tags found
      * @throws IOException
      */
-    public List<SystemTag> listSystemTagsOfFile(@Nonnull NextCloudFile file) throws IOException {
+    public List<SystemTag> listSystemTagsOfFile(@Nonnull NextcloudFile file) throws IOException {
         return listSystemTagsOfFile(file.fileId());
     }
 
@@ -125,7 +125,7 @@ public class NextcloudSystemTagService {
      * @param tag  {@link SystemTag} to add
      * @throws IOException
      */
-    public void addTagToFile(@Nonnull NextCloudFile file, @Nonnull SystemTag tag) throws IOException {
+    public void addTagToFile(@Nonnull NextcloudFile file, @Nonnull SystemTag tag) throws IOException {
         addTagToFile(file.fileId(), tag.id());
     }
 
@@ -161,7 +161,7 @@ public class NextcloudSystemTagService {
      * @param tag  {@link SystemTag} to remove
      * @throws IOException
      */
-    public void removeTagFromFile(@Nonnull NextCloudFile file, @Nonnull SystemTag tag) throws IOException {
+    public void removeTagFromFile(@Nonnull NextcloudFile file, @Nonnull SystemTag tag) throws IOException {
         removeTagFromFile(file.fileId(), tag.id());
     }
 

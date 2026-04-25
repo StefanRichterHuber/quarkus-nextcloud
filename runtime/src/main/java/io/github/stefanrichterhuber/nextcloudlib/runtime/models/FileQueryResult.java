@@ -132,7 +132,7 @@ public class FileQueryResult {
          * @param user
          * @return
          */
-        public NextCloudFile toNextCloudFile(Sardine sardine, String user) {
+        public NextcloudFile toNextCloudFile(Sardine sardine, String user) {
             final Date lastModified = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
                     .map(Long::parseLong).map(Date::new).orElse(null);
             final Integer fileId = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
@@ -144,7 +144,7 @@ public class FileQueryResult {
             final String filePath = getAbsolutePath();
             final DataSource ds = new SardineDataSource(sardine, filePath, contentType);
 
-            final NextCloudFile file = new NextCloudFile(fileId, user, getPath(),
+            final NextcloudFile file = new NextcloudFile(fileId, user, getPath(),
                     etag, lastModified, ds,
                     contentLength);
             return file;

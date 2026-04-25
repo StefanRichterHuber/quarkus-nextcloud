@@ -65,7 +65,7 @@ public record FulltextSearchResult(
             public record Excerpt(String source, String excerpt) {
             }
 
-            public NextCloudFile toNextCloudFile(final String server, final Sardine sardine) {
+            public NextcloudFile toNextCloudFile(final String server, final Sardine sardine) {
                 final String user = access().viewerId();
                 final String etag = info().etag();
                 final String contentType = info().mime();
@@ -74,7 +74,7 @@ public record FulltextSearchResult(
                 final Integer fileId = Integer.parseInt(id());
                 final String path = String.format("%s%s", server, info().path());
                 final DataSource ds = new SardineDataSource(sardine, path, contentType);
-                return new NextCloudFile(fileId, user, path, etag, modified, ds, contentLength);
+                return new NextcloudFile(fileId, user, path, etag, modified, ds, contentLength);
             }
         }
     }

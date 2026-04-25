@@ -21,7 +21,7 @@ import com.github.difflib.patch.Patch;
 import com.github.difflib.patch.PatchFailedException;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService.NextCloudFileLock;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.tools.LineSeparatorDetector;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.tools.LineSeparatorDetector.LineSeparator;
 import jakarta.activation.DataSource;
@@ -87,7 +87,7 @@ public class NextcloudFileDiffService {
      * @param f2 Second file
      * @return Patch found
      */
-    public Patch<String> getContentPatch(NextCloudFile f1, NextCloudFile f2) {
+    public Patch<String> getContentPatch(NextcloudFile f1, NextcloudFile f2) {
         if (Objects.equals(f1, f2) || f1 == null || f2 == null) {
             return DiffUtils.diff(Collections.emptyList(), Collections.emptyList());
         }
@@ -135,7 +135,7 @@ public class NextcloudFileDiffService {
      * @throws IOException
      * @throws PatchFailedException
      */
-    public void applyContentPatch(NextCloudFile file, Patch<String> patch, int fuzz,
+    public void applyContentPatch(NextcloudFile file, Patch<String> patch, int fuzz,
             @Nullable String lockToken) throws IOException, PatchFailedException {
         Objects.requireNonNull(file, "file must not be null");
         Objects.requireNonNull(patch, "patch must not be null");
@@ -178,7 +178,7 @@ public class NextcloudFileDiffService {
      * @throws IOException
      * @throws PatchFailedException
      */
-    public void applyContentPatch(NextCloudFile file, Patch<String> patch, int fuzz)
+    public void applyContentPatch(NextcloudFile file, Patch<String> patch, int fuzz)
             throws IOException, PatchFailedException {
         applyContentPatch(file, patch, fuzz, (String) null);
     }
@@ -195,7 +195,7 @@ public class NextcloudFileDiffService {
      * @throws IOException
      * @throws PatchFailedException
      */
-    public void applyContentPatch(NextCloudFile file, Patch<String> patch, int fuzz,
+    public void applyContentPatch(NextcloudFile file, Patch<String> patch, int fuzz,
             @Nullable NextCloudFileLock lock) throws IOException, PatchFailedException {
         final String lockTocken = lock != null ? lock.token() : null;
         applyContentPatch(file, patch, fuzz, lockTocken);

@@ -35,7 +35,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.ByteArrayDataSou
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FileQueryResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchQuery;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchResult;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SardineDataSource;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Condition;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.FileSelector;
@@ -90,7 +90,7 @@ public class NextcloudFileService {
             return url;
         }
 
-        public NextCloudFile getFile() throws IOException {
+        public NextcloudFile getFile() throws IOException {
             return NextcloudFileService.this.getFile(url());
         }
 
@@ -135,14 +135,14 @@ public class NextcloudFileService {
      * Downloads the file
      * 
      * @param path Relative file path
-     * @return {@link NextCloudFile} found, or null if file does not exists
+     * @return {@link NextcloudFile} found, or null if file does not exists
      * @throws IOException
      */
-    public NextCloudFile getFile(@Nullable String path) throws IOException {
+    public NextcloudFile getFile(@Nullable String path) throws IOException {
         final String target = getWebDavFilePath(path);
-        final List<NextCloudFile> results = getFileByInternalPath(target);
+        final List<NextcloudFile> results = getFileByInternalPath(target);
 
-        final NextCloudFile result = results.isEmpty() ? null : results.get(0);
+        final NextcloudFile result = results.isEmpty() ? null : results.get(0);
         return result;
     }
 
@@ -156,7 +156,7 @@ public class NextcloudFileService {
      * @see <a href=
      *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html</a>
      */
-    private List<NextCloudFile> getFileByInternalPath(@Nonnull String target) throws IOException {
+    private List<NextcloudFile> getFileByInternalPath(@Nonnull String target) throws IOException {
         final Set<QName> properties = Set.of( //
                 new QName("http://owncloud.org/ns", "fileid", "oc"), //
                 new QName("DAV:", "getetag", "d"), //
@@ -165,7 +165,7 @@ public class NextcloudFileService {
                 new QName("DAV:", "getcontenttype", "d") //
         );
         final List<DavResource> propfind = this.sardine.propfind(target, 1, properties);
-        final List<NextCloudFile> result = propfind.stream().map(this::davResourceToNextCloudFile).toList();
+        final List<NextcloudFile> result = propfind.stream().map(this::davResourceToNextCloudFile).toList();
         return result;
     }
 
@@ -175,7 +175,7 @@ public class NextcloudFileService {
      * @param davResource
      * @return
      */
-    private NextCloudFile davResourceToNextCloudFile(@Nonnull DavResource davResource) {
+    private NextcloudFile davResourceToNextCloudFile(@Nonnull DavResource davResource) {
         if (davResource != null) {
             final String user = this.getCurrentUser();
             final String etag = davResource.getEtag();
@@ -189,7 +189,7 @@ public class NextcloudFileService {
             final DataSource ds = new SardineDataSource(this.sardine, path, contentType);
 
             final String filePath = path.replace(getWebDavFilePath(null) + "/", "");
-            return new NextCloudFile(fileId, user, filePath, etag, modified, ds, contentLength);
+            return new NextcloudFile(fileId, user, filePath, etag, modified, ds, contentLength);
         } else {
             return null;
         }
@@ -201,12 +201,12 @@ public class NextcloudFileService {
      * @param path Path of the file
      * @return List of revisions as NextCloudFile
      */
-    public List<NextCloudFile> listFileRevisions(@Nonnull String path) throws IOException {
-        final NextCloudFile latest = getFile(path);
+    public List<NextcloudFile> listFileRevisions(@Nonnull String path) throws IOException {
+        final NextcloudFile latest = getFile(path);
         if (latest != null) {
             // For some strange reasone the latest file revision could not be downloaded
             // from the list of revisions -> download by filename
-            List<NextCloudFile> result = listFileRevisions(latest.fileId());
+            List<NextcloudFile> result = listFileRevisions(latest.fileId());
             final Date latestRev = result.stream().filter(f -> f.modified() != null).map(f -> f.modified())
                     .max(Date::compareTo)
                     .orElse(null);
@@ -217,7 +217,7 @@ public class NextcloudFileService {
                         // the latest revision
                         return latest;
                     } else {
-                        return (NextCloudFile) file;
+                        return (NextcloudFile) file;
                     }
                 }).toList();
             } else {
@@ -234,12 +234,12 @@ public class NextcloudFileService {
      * @param fileId ID of the file
      * @return List of revisions as NextCloudFile
      */
-    private List<NextCloudFile> listFileRevisions(final int fileId) throws IOException {
+    private List<NextcloudFile> listFileRevisions(final int fileId) throws IOException {
         final String user = this.getCurrentUser();
         final String target = String.format("%s/remote.php/dav/versions/%s/versions/%d", authProvider.getServer(), user,
                 fileId);
 
-        List<NextCloudFile> result = getFileByInternalPath(target);
+        List<NextcloudFile> result = getFileByInternalPath(target);
         return result;
     }
 
@@ -250,12 +250,12 @@ public class NextcloudFileService {
      * @param revisionId ID of the reviion
      * @return
      */
-    public NextCloudFile getFileRevision(long fileId, @Nonnull String revisionId) throws IOException {
+    public NextcloudFile getFileRevision(long fileId, @Nonnull String revisionId) throws IOException {
         final String user = this.getCurrentUser();
         final String target = String.format("%s/remote.php/dav/versions/%s/versions/%d/%s", authProvider.getServer(),
                 user,
                 fileId, revisionId);
-        final List<NextCloudFile> results = getFileByInternalPath(target);
+        final List<NextcloudFile> results = getFileByInternalPath(target);
         return results.isEmpty() ? null : results.get(0);
     }
 
@@ -267,8 +267,8 @@ public class NextcloudFileService {
      *                   returned
      * @return
      */
-    public NextCloudFile getFileRevision(@Nonnull String path, @Nullable String revisionId) throws IOException {
-        final NextCloudFile latest = getFile(path);
+    public NextcloudFile getFileRevision(@Nonnull String path, @Nullable String revisionId) throws IOException {
+        final NextcloudFile latest = getFile(path);
         if (revisionId == null || revisionId.isBlank()) {
             return latest;
         }
@@ -288,7 +288,7 @@ public class NextcloudFileService {
      *         was null
      * @throws IOException
      */
-    public NextCloudFile downloadFileImmediately(NextCloudFile file) throws IOException {
+    public NextcloudFile downloadFileImmediately(NextcloudFile file) throws IOException {
         if (file == null) {
             return null;
         }
@@ -315,7 +315,7 @@ public class NextcloudFileService {
         try (InputStream is = this.sardine.get(getWebDavFilePath(file.path()), headers)) {
             byte[] content = is.readAllBytes();
             ByteArrayDataSource ds = new ByteArrayDataSource(file.path(), contentType, content);
-            return new NextCloudFile(file.fileId(), contentType, file.path(), etag, modDate, ds,
+            return new NextcloudFile(file.fileId(), contentType, file.path(), etag, modDate, ds,
                     file.contentLength());
         }
     }
@@ -329,18 +329,18 @@ public class NextcloudFileService {
      * @return File found
      */
     @Retry(maxRetries = 4)
-    public NextCloudFile getFileByModifyDate(@Nonnull String path, @Nullable Date modificationDate) throws IOException {
+    public NextcloudFile getFileByModifyDate(@Nonnull String path, @Nullable Date modificationDate) throws IOException {
         if (modificationDate == null || modificationDate.getTime() == 0) {
             // Load latest revision
-            final NextCloudFile result = this.getFile(path);
+            final NextcloudFile result = this.getFile(path);
             return result;
         } else {
             // Sorted by revision date
-            final List<NextCloudFile> revisions = this.listFileRevisions(path).stream()
+            final List<NextcloudFile> revisions = this.listFileRevisions(path).stream()
                     .filter(rev -> rev.modified() != null)
                     .sorted((r1, r2) -> r1.modified().compareTo(r2.modified())).toList();
             // Find the revision with the the given modification date
-            NextCloudFile found = revisions.stream().filter(f -> modificationDate.equals(f.modified()))
+            NextcloudFile found = revisions.stream().filter(f -> modificationDate.equals(f.modified()))
                     .findFirst()
                     .orElse(null);
 
@@ -356,7 +356,7 @@ public class NextcloudFileService {
      * @return List of Nextcloud files found
      * @throws IOException
      */
-    public List<NextCloudFile> listFiles(@Nullable String path, int depth)
+    public List<NextcloudFile> listFiles(@Nullable String path, int depth)
             throws IOException {
         final Set<QName> qproperties = Set.of( //
                 new QName("http://owncloud.org/ns", "fileid", "oc"), //
@@ -370,7 +370,7 @@ public class NextcloudFileService {
         final String target = getWebDavFilePath(path);
         final List<DavResource> propfind = this.sardine.propfind(target, depth, qproperties);
 
-        final List<NextCloudFile> result = propfind.stream().map(this::davResourceToNextCloudFile).toList();
+        final List<NextcloudFile> result = propfind.stream().map(this::davResourceToNextCloudFile).toList();
         return result;
     }
 
@@ -383,7 +383,7 @@ public class NextcloudFileService {
      * @return List of Nextcloud files found
      * @throws IOException
      */
-    public List<NextCloudFile> listFiles(@Nullable String path, int depth, List<FilterRule> rules) throws IOException {
+    public List<NextcloudFile> listFiles(@Nullable String path, int depth, List<FilterRule> rules) throws IOException {
         if (rules == null || rules.isEmpty()) {
             return listFiles(path, depth);
         }
@@ -395,7 +395,7 @@ public class NextcloudFileService {
         }
         final FileQueryResult fqr = listFiles(path, depth, selector);
         if (fqr != null) {
-            final List<NextCloudFile> result = fqr.getFiles().stream()
+            final List<NextcloudFile> result = fqr.getFiles().stream()
                     .map(f -> f.toNextCloudFile(sardine, this.getCurrentUser())).toList();
             return result;
         } else {

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FileQueryResult;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Condition;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Property;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
@@ -83,7 +83,7 @@ public class NextcloudFileTest {
     @Test
     public void basicFileAccessTest() throws IOException {
         service.createDirectories(ROOT_DIR);
-        List<NextCloudFile> files = service.listFiles(ROOT_DIR, -1);
+        List<NextcloudFile> files = service.listFiles(ROOT_DIR, -1);
 
         assertNotNull(files);
     }
@@ -95,14 +95,14 @@ public class NextcloudFileTest {
         service.uploadFile(filename, "text/markdown",
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
         try {
-            NextCloudFile rev1 = service.getFile(filename);
+            NextcloudFile rev1 = service.getFile(filename);
             assertNotNull(rev1);
             String etag = rev1.etag();
 
             service.uploadFile(filename, "text/markdown",
                     new ByteArrayInputStream(TEST_TEXT2.getBytes(StandardCharsets.UTF_8)), etag, (String) null);
 
-            NextCloudFile rev2 = service.getFile(filename);
+            NextcloudFile rev2 = service.getFile(filename);
             assertNotNull(rev2);
         } finally {
             service.deleteFile(filename, null, (String) null);
@@ -117,7 +117,7 @@ public class NextcloudFileTest {
         service.uploadFile(filename, "text/markdown",
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
 
-        NextCloudFile rev1 = service.getFile(filename);
+        NextcloudFile rev1 = service.getFile(filename);
         assertNotNull(rev1);
         String etag = rev1.etag();
         assertNotNull(etag);

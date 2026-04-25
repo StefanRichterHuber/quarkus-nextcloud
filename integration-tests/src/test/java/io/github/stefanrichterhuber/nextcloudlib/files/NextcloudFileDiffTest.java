@@ -19,7 +19,7 @@ import com.github.difflib.patch.PatchFailedException;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 
@@ -66,7 +66,7 @@ public class NextcloudFileDiffTest {
 
         try {
 
-            NextCloudFile rev1 = service.getFile(filename);
+            NextcloudFile rev1 = service.getFile(filename);
             assertNotNull(rev1);
             String rev1Text = rev1.readToString(StandardCharsets.UTF_8);
             assertEquals(TEST_TEXT1, rev1Text);
@@ -76,7 +76,7 @@ public class NextcloudFileDiffTest {
 
             diffService.applyContentPatch(rev1, patch, 4);
 
-            NextCloudFile rev2 = service.getFile(filename);
+            NextcloudFile rev2 = service.getFile(filename);
             assertNotNull(rev2);
 
             String rev2Text = rev2.readToString(StandardCharsets.UTF_8);

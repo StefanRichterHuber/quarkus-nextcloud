@@ -40,6 +40,15 @@ public class NextcloudDevServicesResultBuildItem {
     public DevServicesResultBuildItem createContainer()
             throws IOException, UnsupportedOperationException, InterruptedException {
 
+        // First check if a nextcloud instance is configured. If it is, no necessity to
+        // start the dev service
+        final String nextcloudUrl = ConfigProvider.getConfig().getOptionalValue(NEXTCLOUD_URL_PROPERTY, String.class)
+                .orElse(null);
+        if (nextcloudUrl != null) {
+            log.info("Nextcloud url already configured, no need to start Nextcloud dev service");
+            return null;
+        }
+
         final String image = ConfigProvider.getConfig()
                 .getOptionalValue("nextcloud.dev-services.image", String.class)
                 .orElse(SERVICE_IMAGE);
@@ -86,8 +95,12 @@ public class NextcloudDevServicesResultBuildItem {
         );
         if (appApiSupport) {
             configOverrides = installAppApi(container, configOverrides);
-
         }
+
+        log.infof(
+                "Started nextcloud dev instance at <%s> with apps %s with admin user <%s> and password <%s>. AppAPI support %s.",
+                newUrl,
+                apps, user, password, appApiSupport ? "enabled" : "not enabled");
 
         return DevServicesResultBuildItem.discovered()
                 .feature(FEATURE_NAME)
