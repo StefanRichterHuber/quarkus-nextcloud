@@ -2,6 +2,9 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.models;
 
 import com.github.sardine.DavResource;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
 public record SystemTag(int id, String displayName, boolean userAssignable, boolean canAssign,
         boolean userVisible) {
 

@@ -67,3 +67,6 @@ Config properties provided by the dev service for direct access (matching the pr
 | `nextcloud.user` | User of the Nextcloud instance.  |
 | `nextcloud.password` | Password of the Nextcloud instance. |
 
+## Limits
+
+* Native image generation is somewhat prepared but not thoroughly tested.

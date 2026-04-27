@@ -5,9 +5,12 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 /**
  * Nextcloud user record
  */
+@RegisterForReflection
 public record NextcloudUser(
         boolean enabled,
         String storageLocation,

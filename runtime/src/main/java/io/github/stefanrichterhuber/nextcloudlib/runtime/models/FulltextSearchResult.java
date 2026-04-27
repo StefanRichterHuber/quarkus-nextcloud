@@ -5,12 +5,14 @@ import java.util.List;
 
 import com.github.sardine.Sardine;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.activation.DataSource;
 
 /**
  * @see <a href=
  *      "https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client">https://github.com/nextcloud/fulltextsearch/wiki/Include-Full-text-search-in-your-client</a>
  */
+@RegisterForReflection
 public record FulltextSearchResult(
         List<Result> result,
         int status,

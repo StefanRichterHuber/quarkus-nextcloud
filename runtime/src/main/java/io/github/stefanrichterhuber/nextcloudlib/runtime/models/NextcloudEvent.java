@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.CalendarObjectEvent.CalendarData;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.CalendarObjectEvent.Shares;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.Nullable;
 
 /**
@@ -23,6 +24,7 @@ import jakarta.annotation.Nullable;
  * @param user  the user that triggered the event
  * @param time  the Unix timestamp (seconds) at which the event was triggered
  */
+@RegisterForReflection
 public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event>(
         T event, User user, long time, Authentication authentication) {
     // --------- One node file events (type FileEvent, property node is set)

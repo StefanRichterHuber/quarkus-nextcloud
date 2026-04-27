@@ -8,6 +8,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchRe
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -22,6 +23,7 @@ public interface NextcloudRestClient {
     /**
      * Request body for creating a new global system tag.
      */
+    @RegisterForReflection
     public static record CreateSystemTagRequest(String name, boolean userVisible, boolean userAssignable,
             boolean canAssign) {
     }
@@ -69,4 +71,26 @@ public interface NextcloudRestClient {
     @Consumes(MediaType.APPLICATION_JSON)
     OCSMessage<NextcloudUser> getUserInfo(@PathParam("userid") String userId);
 
+    /**
+     * Request ot add a comment to an object
+     * 
+     * @param actorType always 'users'
+     * @param verb      'comment'
+     * @param message   Actual message of the comment
+     */
+    @RegisterForReflection
+    record AddCommentRequest(String actorType, String verb, String message) {
+    }
+
+    /**
+     * Adds a new comment to an next cloud object
+     * 
+     * @param type     Object type (e.g. 'files')
+     * @param objectId Object id (e.g. file id)
+     * @param request  Request
+     */
+    @POST
+    @Path("remote.php/dav/comments/{type}/{objectId}")
+    void addComment(@PathParam("type") String type, @PathParam("objectId") String objectId,
+            AddCommentRequest request);
 }

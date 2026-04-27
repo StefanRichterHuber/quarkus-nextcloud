@@ -1,5 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.models;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
 public record OCSMessage<T>(OCSMessage.OCS<T> ocs) {
     /**
      * Checks if the response is successful based on the status code in the meta

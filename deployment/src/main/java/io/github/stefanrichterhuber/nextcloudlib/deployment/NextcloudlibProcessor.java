@@ -1,6 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCommentService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
@@ -59,6 +60,7 @@ class NextcloudlibProcessor {
                 .addBeanClass(NextcloudAPIClientHeaders.class)
                 .addBeanClass(NextcloudFileDiffService.class)
                 .addBeanClass(NextcloudUserService.class)
+                .addBeanClass(NextcloudCommentService.class)
                 .addBeanClass(NextcloudAPIAdminClientHeaders.class).build();
     }
 }
