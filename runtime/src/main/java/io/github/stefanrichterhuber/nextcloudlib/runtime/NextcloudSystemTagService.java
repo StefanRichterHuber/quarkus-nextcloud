@@ -61,22 +61,24 @@ public class NextcloudSystemTagService {
      * @param canAssign      Can the user assign the tag
      * @param userVisible    Is the tag visible by the user at all
      * @return The new system tag created
+     * @throws IOException
      */
-    public SystemTag addSystemTag(String name, boolean userAssignable, boolean canAssign, boolean userVisible) {
+    public SystemTag addSystemTag(String name, boolean userAssignable, boolean canAssign, boolean userVisible)
+            throws IOException {
         final CreateSystemTagRequest req = new CreateSystemTagRequest(name, userVisible, userAssignable, canAssign);
         // Header content-location /remote.php/dav/systemtags/207 -> System tag id 207
         try (final Response response = getApiService().createNewGlobalSystemTag(req)) {
             if (response.getStatusInfo().getFamily() == Family.SUCCESSFUL) {
                 final String contentLocation = response.getHeaderString("content-location");
                 if (contentLocation == null || contentLocation.isBlank()) {
-                    throw new IllegalStateException("Failed to add system tag " + name
+                    throw new IOException("Failed to add system tag " + name
                             + ". Server response missing 'content-location' header");
                 }
                 final String tagIDString = contentLocation.substring(contentLocation.lastIndexOf("/") + 1);
                 final int tagId = Integer.parseInt(tagIDString);
                 return new SystemTag(tagId, name, userAssignable, canAssign, userVisible);
             } else {
-                throw new IllegalStateException("Failed to add system tag " + name);
+                throw new IOException("Failed to add system tag " + name);
             }
         }
     }
