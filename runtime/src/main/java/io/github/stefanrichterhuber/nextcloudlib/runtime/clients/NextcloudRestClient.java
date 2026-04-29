@@ -17,6 +17,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 @RegisterClientHeaders(NextcloudAPIClientHeaders.class)
 public interface NextcloudRestClient {
@@ -47,7 +48,7 @@ public interface NextcloudRestClient {
      */
     @POST
     @Path("remote.php/dav/systemtags")
-    void createNewGlobalSystemTag(CreateSystemTagRequest req);
+    Response createNewGlobalSystemTag(CreateSystemTagRequest req);
 
     /**
      * Performs a full-text search on the nextcloud server

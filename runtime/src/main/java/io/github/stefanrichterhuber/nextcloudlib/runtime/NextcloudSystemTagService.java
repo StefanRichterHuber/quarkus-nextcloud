@@ -22,6 +22,8 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.annotation.Nonnull;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status.Family;
 
 /**
  * Service for managing system tags on the nextcloud server.
@@ -58,10 +60,25 @@ public class NextcloudSystemTagService {
      * @param userAssignable Is the tag assignable by the user
      * @param canAssign      Can the user assign the tag
      * @param userVisible    Is the tag visible by the user at all
+     * @return The new system tag created
      */
-    public void addSystemTag(String name, boolean userAssignable, boolean canAssign, boolean userVisible) {
-        CreateSystemTagRequest req = new CreateSystemTagRequest(name, userVisible, userAssignable, canAssign);
-        getApiService().createNewGlobalSystemTag(req);
+    public SystemTag addSystemTag(String name, boolean userAssignable, boolean canAssign, boolean userVisible) {
+        final CreateSystemTagRequest req = new CreateSystemTagRequest(name, userVisible, userAssignable, canAssign);
+        // Header content-location /remote.php/dav/systemtags/207 -> System tag id 207
+        try (final Response response = getApiService().createNewGlobalSystemTag(req)) {
+            if (response.getStatusInfo().getFamily() == Family.SUCCESSFUL) {
+                final String contentLocation = response.getHeaderString("content-location");
+                if (contentLocation == null || contentLocation.isBlank()) {
+                    throw new IllegalStateException("Failed to add system tag " + name
+                            + ". Server response missing 'content-location' header");
+                }
+                final String tagIDString = contentLocation.substring(contentLocation.lastIndexOf("/") + 1);
+                final int tagId = Integer.parseInt(tagIDString);
+                return new SystemTag(tagId, name, userAssignable, canAssign, userVisible);
+            } else {
+                throw new IllegalStateException("Failed to add system tag " + name);
+            }
+        }
     }
 
     /**
