@@ -78,7 +78,8 @@ public class NextcloudSystemTagService {
                 final int tagId = Integer.parseInt(tagIDString);
                 return new SystemTag(tagId, name, userAssignable, canAssign, userVisible);
             } else {
-                throw new IOException("Failed to add system tag " + name);
+                throw new IOException("Failed to add system tag <" + name + "> Status: " + response.getStatus() + ": "
+                        + response.readEntity(String.class));
             }
         }
     }
