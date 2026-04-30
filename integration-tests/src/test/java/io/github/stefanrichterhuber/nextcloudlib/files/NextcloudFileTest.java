@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.files;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.ByteArrayInputStream;
@@ -91,12 +92,19 @@ public class NextcloudFileTest {
     @Test
     public void overwriteFileWithEtagTest() throws IOException {
         service.createDirectories(ROOT_DIR);
-        String filename = ROOT_DIR + "/" + UUID.randomUUID().toString() + ".md";
+        // Introduce space to test path
+        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
+        String filename = ROOT_DIR + "/" + rawFileName;
         service.uploadFile(filename, "text/markdown",
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
         try {
             NextcloudFile rev1 = service.getFile(filename);
             assertNotNull(rev1);
+            assertEquals(rawFileName, rev1.dataSource().getName());
+
+            rev1 = service.downloadFileImmediately(rev1);
+            assertNotNull(rev1);
+            assertEquals(rawFileName, rev1.dataSource().getName());
             String etag = rev1.etag();
 
             service.uploadFile(filename, "text/markdown",
