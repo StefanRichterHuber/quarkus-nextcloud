@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -58,7 +58,7 @@ public class NextcloudEventDispatcher {
                         if (executor != null) {
                             executor.execute(() -> invoker.invoke(event));
                         }
-                        continue;
+                        break;
                     } catch (Exception e) {
                         logger.errorf(e, "Failed to dispatch event <%s>", event);
                     }

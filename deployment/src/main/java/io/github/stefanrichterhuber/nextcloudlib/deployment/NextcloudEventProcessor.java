@@ -11,13 +11,13 @@ import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 import org.jboss.logging.Logger;
 
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventInvoker;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookBuildConfig;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookRecorder;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookRegistrar;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookSecretHolder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventDispatcher;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookBuildConfig;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRecorder;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrar;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookSecretHolder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ArcContainer;
@@ -248,7 +248,7 @@ class NextcloudEventProcessor {
     /**
      * Registers a Vert.x route at {@code nextcloud.webhook.path} (default
      * {@code /webhook}) that forwards POST requests to the
-     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookHandler}.
+     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookHandler}.
      * Only produced when at least one {@link OnNextcloudEvent} handler exists.
      */
     @BuildStep

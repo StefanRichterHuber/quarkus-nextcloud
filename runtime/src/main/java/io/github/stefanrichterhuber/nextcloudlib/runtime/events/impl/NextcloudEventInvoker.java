@@ -1,5 +1,6 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 
 /**

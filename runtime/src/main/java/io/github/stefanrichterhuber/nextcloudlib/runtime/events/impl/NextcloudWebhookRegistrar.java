@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.net.URI;
 import java.util.HashSet;
@@ -15,6 +15,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhoo
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.HTTPMethod;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage.TokenNeeded;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.runtime.Startup;

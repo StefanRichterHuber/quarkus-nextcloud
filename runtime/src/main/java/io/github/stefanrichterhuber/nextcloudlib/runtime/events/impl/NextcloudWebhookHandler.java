@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

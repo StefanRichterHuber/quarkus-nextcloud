@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.util.Optional;
 
@@ -20,19 +20,19 @@ import io.smallrye.config.WithDefault;
  *
  * <h2>Properties</h2>
  * <ul>
- *   <li>{@code nextcloud.webhook.path} – path at which the webhook endpoint is
- *       mounted (default {@code /webhook}). Changing this requires a rebuild.</li>
- *   <li>{@code nextcloud.webhook.host} – publicly reachable base URL of this
- *       application as seen by Nextcloud, e.g. {@code https://myapp.example.com}.
- *       Combined with {@code path} to form the full callback URL.</li>
- *   <li>{@code nextcloud.webhook.secret} – shared secret token sent in the
- *       authentication header. When absent a cryptographically random secret is
- *       generated at startup and a warning is logged.</li>
- *   <li>{@code nextcloud.webhook.header} – HTTP header used to transmit the
- *       shared secret (default {@code X-Nextcloud-Webhook-Secret}).</li>
- *   <li>{@code nextcloud.webhook.always-register} – when {@code true} any
- *       existing webhook registration is deleted and re-created on every startup
- *       (default {@code false}).</li>
+ * <li>{@code nextcloud.webhook.path} – path at which the webhook endpoint is
+ * mounted (default {@code /webhook}). Changing this requires a rebuild.</li>
+ * <li>{@code nextcloud.webhook.host} – publicly reachable base URL of this
+ * application as seen by Nextcloud, e.g. {@code https://myapp.example.com}.
+ * Combined with {@code path} to form the full callback URL.</li>
+ * <li>{@code nextcloud.webhook.secret} – shared secret token sent in the
+ * authentication header. When absent a cryptographically random secret is
+ * generated at startup and a warning is logged.</li>
+ * <li>{@code nextcloud.webhook.header} – HTTP header used to transmit the
+ * shared secret (default {@code X-Nextcloud-Webhook-Secret}).</li>
+ * <li>{@code nextcloud.webhook.always-register} – when {@code true} any
+ * existing webhook registration is deleted and re-created on every startup
+ * (default {@code false}).</li>
  * </ul>
  */
 @ConfigRoot(phase = ConfigPhase.BUILD_AND_RUN_TIME_FIXED)
@@ -57,7 +57,9 @@ public interface NextcloudWebhookBuildConfig {
     @WithDefault("X-Nextcloud-Webhook-Secret")
     String header();
 
-    /** When {@code true} the webhook registration is always re-created on startup. */
+    /**
+     * When {@code true} the webhook registration is always re-created on startup.
+     */
     @WithDefault("false")
     boolean alwaysRegister();
 }

@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
+package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.security.SecureRandom;
 import java.util.HexFormat;
@@ -46,7 +46,9 @@ public class NextcloudWebhookSecretHolder {
         });
     }
 
-    /** Returns the effective shared secret, either configured or randomly generated. */
+    /**
+     * Returns the effective shared secret, either configured or randomly generated.
+     */
     public String getSecret() {
         return secret;
     }
