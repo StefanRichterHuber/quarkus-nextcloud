@@ -86,13 +86,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 public class FileEventHandler {
 
     // Single event type
-    @OnNextcloudEvent(NextcloudEvent.FileNodeCreatedEvent)
+    @OnNextcloudEvent(events = {NextcloudEvent.FileNodeCreatedEvent})
     public void onFileCreated(NextcloudEvent<?> event) {
         System.out.println("File created: " + event.event().className());
     }
 
     // Multiple event types on one method
-    @OnNextcloudEvent({
+    @OnNextcloudEvent(events = {
         NextcloudEvent.FileNodeCreatedEvent,
         NextcloudEvent.FileNodeDeletedEvent,
         NextcloudEvent.FileNodeWrittenEvent
