@@ -22,7 +22,7 @@ import io.vertx.ext.web.RoutingContext;
  * <p>
  * This handler is registered as a Vert.x route at the path configured by
  * {@link NextcloudWebhookBuildConfig#path()} (default {@code /webhook}).
- * It is instantiated by {@link NextcloudEventRecorder} at static-init time
+ * It is instantiated by {@link NextcloudWebhookRecorder} at static-init time
  * and therefore cannot use constructor injection. All collaborators are
  * resolved lazily from the CDI container via {@link Arc#container()} on each
  * request.

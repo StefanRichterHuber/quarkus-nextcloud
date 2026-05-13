@@ -5,7 +5,9 @@ import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.quarkus.arc.DefaultBean;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 
 /**
@@ -23,7 +25,8 @@ import jakarta.inject.Inject;
  * </ul>
  */
 @DefaultBean
-@ApplicationScoped
+@RequestScoped
+@Priority(NextcloudAuthProvider.STANDARD_PRIORITY)
 public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     @Inject
     @ConfigProperty(name = "nextcloud.url")
@@ -57,6 +60,21 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     public String getServer() {
         return serverUrl.orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
                 + " NextcloudAuthProvider requires a server url to be set in the configuration (nextcloud.url)"));
+    }
+
+    @Override
+    public void setUser(String user) {
+        this.user = Optional.ofNullable(user);
+    }
+
+    @Override
+    public void setPassword(String password) {
+        this.password = Optional.ofNullable(password);
+    }
+
+    @Override
+    public void setServer(String server) {
+        this.serverUrl = Optional.ofNullable(server);
     }
 
 }

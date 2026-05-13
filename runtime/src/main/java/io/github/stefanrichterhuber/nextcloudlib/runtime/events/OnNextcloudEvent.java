@@ -5,6 +5,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+
 /**
  * Marks a CDI bean method as a Nextcloud webhook event handler.
  *
@@ -15,16 +17,19 @@ import java.lang.annotation.Target;
  * on startup and dispatch matching events to the method.
  * </p>
  *
- * <pre>{@code
- * @ApplicationScoped
- * public class MyBean {
+ * <pre>
+ * {
+ *     &#64;code
+ *     &#64;ApplicationScoped
+ *     public class MyBean {
  *
- *     @OnNextcloudEvent({NextcloudEvent.FileNodeCreatedEvent, NextcloudEvent.FileNodeDeletedEvent})
- *     public void onFileChanged(NextcloudEvent<?> event) {
- *         // handle event
+ *         @OnNextcloudEvent(events = { NextcloudEvent.FileNodeCreatedEvent, NextcloudEvent.FileNodeDeletedEvent })
+ *         public void onFileChanged(NextcloudEvent<?> event) {
+ *             // handle event
+ *         }
  *     }
  * }
- * }</pre>
+ * </pre>
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -32,8 +37,26 @@ public @interface OnNextcloudEvent {
     /**
      * One or more fully-qualified Nextcloud PHP event class names to listen for,
      * e.g. {@code "OCP\\Files\\Events\\Node\\NodeCreatedEvent"}.
-     * Use the constants on {@link io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent}
+     * Use the constants on
+     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent}
      * for a type-safe reference.
      */
-    String[] value();
+    String[] events();
+
+    /**
+     * If set to true, a temporary auth token for the triggering user is requested
+     * from nextcloud
+     * 
+     * @return
+     */
+    boolean tokenNeeded() default false;
+
+    /**
+     * If set to true, a temporary auth token for the triggering user is requested
+     * and a {@link NextcloudAuthProvider} instance with this token is proved in the
+     * request context
+     * 
+     * @return
+     */
+    boolean provideAuth() default false;
 }

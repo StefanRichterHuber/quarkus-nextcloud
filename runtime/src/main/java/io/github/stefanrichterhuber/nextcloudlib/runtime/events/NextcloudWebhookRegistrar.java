@@ -112,6 +112,10 @@ public class NextcloudWebhookRegistrar {
         }
     }
 
+    /**
+     * On start-up collects all NextcloudEventInvokers and select all events to
+     * handle
+     */
     @Startup
     void registerWebhooks() {
 

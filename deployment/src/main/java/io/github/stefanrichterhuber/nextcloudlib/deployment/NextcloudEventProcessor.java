@@ -1,8 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget.Kind;
@@ -10,12 +10,10 @@ import org.jboss.jandex.DotName;
 import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 import org.jboss.logging.Logger;
-import io.quarkus.deployment.annotations.Record;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventInvoker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookBuildConfig;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookHandler;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookRecorder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudWebhookSecretHolder;
@@ -24,7 +22,6 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ArcContainer;
 import io.quarkus.arc.InjectableInstance;
-import io.quarkus.arc.InstanceHandle;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanGizmoAdaptor;
@@ -32,6 +29,7 @@ import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
@@ -42,9 +40,7 @@ import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.vertx.http.deployment.HttpRootPathBuildItem;
 import io.quarkus.vertx.http.deployment.RouteBuildItem;
-import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Singleton;
 
 class NextcloudEventProcessor {
@@ -80,8 +76,8 @@ class NextcloudEventProcessor {
                 continue;
             }
 
-            MethodInfo method = ann.target().asMethod();
-            String location = method.declaringClass().name() + "#" + method.name();
+            final MethodInfo method = ann.target().asMethod();
+            final String location = method.declaringClass().name() + "#" + method.name();
 
             if (method.parametersCount() != 1) {
                 throw new IllegalStateException(
@@ -89,27 +85,31 @@ class NextcloudEventProcessor {
                                 + " must have exactly one parameter of type NextcloudEvent");
             }
 
-            Type paramType = method.parameterType(0);
+            final Type paramType = method.parameterType(0);
             if (!paramType.name().equals(NEXTCLOUD_EVENT)) {
                 throw new IllegalStateException(
                         "@OnNextcloudEvent method " + location
                                 + " parameter must be NextcloudEvent, found: " + paramType.name());
             }
 
-            String[] eventClassNames = ann.value().asStringArray();
+            final String[] eventClassNames = ann.value("events").asStringArray();
             if (eventClassNames == null || eventClassNames.length == 0) {
                 throw new IllegalStateException(
                         "@OnNextcloudEvent method " + location
                                 + " must specify at least one event class name in value()");
             }
 
-            List<String> eventList = Arrays.asList(eventClassNames);
-            LOG.debugf("Discovered @OnNextcloudEvent handler: %s -> %s", location, eventList);
+            final boolean tokenNeeded = Optional.ofNullable(ann.value("tokenNeeded")).map(av -> av.asBoolean())
+                    .orElse(false);
+            final boolean provideAuth = Optional.ofNullable(ann.value("provideAuth")).map(av -> av.asBoolean())
+                    .orElse(false);
+
+            LOG.debugf("Discovered @OnNextcloudEvent handler: %s -> %s", location, eventClassNames);
 
             handlers.produce(new NextcloudEventHandlerBuildItem(
                     method.declaringClass().name().toString(),
                     method.name(),
-                    eventList));
+                    eventClassNames, tokenNeeded, provideAuth));
         }
     }
 
@@ -146,7 +146,7 @@ class NextcloudEventProcessor {
         for (NextcloudEventHandlerBuildItem handler : handlers) {
             generateInvoker(classOutput, handler.getDeclaringClassName(),
                     handler.getMethodName(),
-                    handler.getEventClassNames().toArray(new String[handler.getEventClassNames().size()]));
+                    handler.getEventClassNames(), handler.isTokenNeeded(), handler.isProvideAuth());
         }
     }
 
@@ -159,7 +159,7 @@ class NextcloudEventProcessor {
      * @return the fully-qualified name of the generated invoker class
      */
     private static String generateInvoker(ClassOutput classOutput, String declaringClassName,
-            String methodName, String[] events) {
+            String methodName, String[] events, boolean tokenNeeded, boolean provideAuth) {
         String invokerClassName = declaringClassName + "_" + methodName + "_NCInvoker";
 
         try (ClassCreator cc = ClassCreator.builder()
@@ -171,6 +171,8 @@ class NextcloudEventProcessor {
             cc.addAnnotation(ApplicationScoped.class);
             buildInvokeMethod(cc, declaringClassName, methodName);
             buildEventsMethod(cc, events);
+            buildRequestAuthTokenMethod(cc, tokenNeeded, provideAuth);
+            buildProvideAuthProviderMethod(cc, tokenNeeded, provideAuth);
         }
 
         LOG.debugf("Generated invoker %s for %s#%s", invokerClassName, declaringClassName, methodName);
@@ -231,6 +233,16 @@ class NextcloudEventProcessor {
             mc.writeArrayValue(array, i, mc.load(events[i]));
         }
         mc.returnValue(array);
+    }
+
+    private static void buildRequestAuthTokenMethod(ClassCreator cc, boolean tokenNeeded, boolean provideAuth) {
+        MethodCreator mc = cc.getMethodCreator("requestAuthToken", boolean.class);
+        mc.returnBoolean(tokenNeeded || provideAuth);
+    }
+
+    private static void buildProvideAuthProviderMethod(ClassCreator cc, boolean tokenNeeded, boolean provideAuth) {
+        MethodCreator mc = cc.getMethodCreator("provideAuthProvider", boolean.class);
+        mc.returnBoolean(provideAuth);
     }
 
     /**

@@ -1,7 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.auth;
 
 import io.quarkus.arc.DefaultBean;
-import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.annotation.Priority;
+import jakarta.enterprise.context.RequestScoped;
 
 /**
  * Default implementation of NextcloudAuthProvider that reads the credentials
@@ -18,7 +19,8 @@ import jakarta.enterprise.context.ApplicationScoped;
  * </ul>
  */
 @DefaultBean
-@ApplicationScoped
+@RequestScoped
 @NextcloudAdmin
+@Priority(NextcloudAuthProvider.STANDARD_PRIORITY)
 public class ConfiguredNextcloudAdminAuthProvider extends ConfiguredNextcloudAuthProvider {
 }

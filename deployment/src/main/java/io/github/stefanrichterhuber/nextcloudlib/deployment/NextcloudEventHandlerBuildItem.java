@@ -14,15 +14,23 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
 
     private final String declaringClassName;
     private final String methodName;
-    private final List<String> eventClassNames;
+    private final String[] eventClassNames;
+    private final boolean tokenNeeded;
 
-    public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, List<String> eventClassNames) {
+    private final boolean provideAuth;
+
+    public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, String[] eventClassNames,
+            boolean tokenNeeded, boolean provideAuth) {
         this.declaringClassName = declaringClassName;
         this.methodName = methodName;
         this.eventClassNames = eventClassNames;
+        this.tokenNeeded = tokenNeeded;
+        this.provideAuth = provideAuth;
     }
 
-    /** Fully-qualified name of the CDI bean class that declares the handler method. */
+    /**
+     * Fully-qualified name of the CDI bean class that declares the handler method.
+     */
     public String getDeclaringClassName() {
         return declaringClassName;
     }
@@ -33,7 +41,15 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
     }
 
     /** Fully-qualified Nextcloud PHP event class names the method listens for. */
-    public List<String> getEventClassNames() {
+    public String[] getEventClassNames() {
         return eventClassNames;
+    }
+
+    public boolean isTokenNeeded() {
+        return tokenNeeded;
+    }
+
+    public boolean isProvideAuth() {
+        return provideAuth;
     }
 }

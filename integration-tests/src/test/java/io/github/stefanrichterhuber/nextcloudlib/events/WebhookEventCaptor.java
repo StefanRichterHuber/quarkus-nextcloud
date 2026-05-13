@@ -20,11 +20,11 @@ public class WebhookEventCaptor {
 
     private final LinkedBlockingQueue<NextcloudEvent<?>> queue = new LinkedBlockingQueue<>();
 
-    @OnNextcloudEvent({
+    @OnNextcloudEvent(events = {
             NextcloudEvent.FileNodeCreatedEvent,
             NextcloudEvent.FileNodeDeletedEvent,
             NextcloudEvent.FileNodeWrittenEvent
-    })
+    }, provideAuth = true, tokenNeeded = true)
     public void onFileEvent(NextcloudEvent<?> event) {
         queue.add(event);
     }
@@ -38,7 +38,10 @@ public class WebhookEventCaptor {
         return queue.poll(timeout, unit);
     }
 
-    /** Discards all queued events — call before each test that checks event delivery. */
+    /**
+     * Discards all queued events — call before each test that checks event
+     * delivery.
+     */
     public void reset() {
         queue.clear();
     }
