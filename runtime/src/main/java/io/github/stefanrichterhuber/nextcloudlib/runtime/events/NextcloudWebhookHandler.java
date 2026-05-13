@@ -1,5 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Objects;
 
 import org.jboss.logging.Logger;
@@ -13,7 +15,8 @@ import io.quarkus.arc.Arc;
 import io.vertx.ext.web.RoutingContext;
 
 /**
- * Vert.x {@link io.vertx.core.Handler} that processes incoming Nextcloud webhook
+ * Vert.x {@link io.vertx.core.Handler} that processes incoming Nextcloud
+ * webhook
  * POST requests.
  *
  * <p>
@@ -27,10 +30,10 @@ import io.vertx.ext.web.RoutingContext;
  *
  * <h2>Request processing</h2>
  * <ol>
- *   <li>Validates the shared-secret header (HTTP 401 on mismatch).</li>
- *   <li>Reads the request body asynchronously.</li>
- *   <li>Deserialises the JSON body into a {@link NextcloudEvent}.</li>
- *   <li>Forwards the event to {@link NextcloudEventDispatcher#dispatch}.</li>
+ * <li>Validates the shared-secret header (HTTP 401 on mismatch).</li>
+ * <li>Reads the request body asynchronously.</li>
+ * <li>Deserialises the JSON body into a {@link NextcloudEvent}.</li>
+ * <li>Forwards the event to {@link NextcloudEventDispatcher#dispatch}.</li>
  * </ol>
  */
 public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingContext> {
@@ -42,11 +45,22 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class).get();
         NextcloudWebhookSecretHolder secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
 
-        String expected = secretHolder.getSecret();
-        String actual = ctx.request().getHeader(config.header());
+        final String expectedSecret = secretHolder.getSecret();
+        final String actualSecret = ctx.request().getHeader(config.header());
 
-        if (!Objects.equals(expected, actual)) {
+        // Runtime of the password check indepentend of password length!
+        if (!MessageDigest.isEqual(
+                actualSecret.getBytes(StandardCharsets.UTF_8),
+                expectedSecret.getBytes(StandardCharsets.UTF_8))) {
             LOG.warn("Rejected webhook request: missing or invalid secret header");
+            ctx.response().setStatusCode(401).end();
+            return;
+        }
+
+        // Check if content-type is json
+        final String contentType = ctx.request().getHeader("Content-Type");
+        if (!Objects.equals("application/json", contentType)) {
+            LOG.warn("Rejected webhook request: wrong content type");
             ctx.response().setStatusCode(401).end();
             return;
         }
@@ -79,5 +93,11 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
                     LOG.errorf(err, "Failed to read webhook request body");
                     ctx.response().setStatusCode(500).end();
                 });
+
+        // CRITICAL: If the request is not ended, resume it to trigger the body
+        // collection
+        if (!ctx.request().isEnded()) {
+            ctx.request().resume();
+        }
     }
 }

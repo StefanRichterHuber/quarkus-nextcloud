@@ -1,6 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
 
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
@@ -61,7 +63,7 @@ public class NextcloudWebhookRegistrar {
     NextcloudAuthProvider adminAuth;
 
     @Inject
-    NextcloudEventDispatcher dispatcher;
+    Instance<NextcloudEventInvoker> invokers;
 
     private String webhookUrl() {
         String host = config.host();
@@ -112,7 +114,12 @@ public class NextcloudWebhookRegistrar {
 
     @Startup
     void registerWebhooks() {
-        Set<String> eventClassNames = dispatcher.getEventClassNames();
+
+        Set<String> eventClassNames = new HashSet<>();
+        for (NextcloudEventInvoker invoker : invokers) {
+            eventClassNames.addAll(Set.of(invoker.events()));
+        }
+
         if (eventClassNames.isEmpty()) {
             return;
         }
