@@ -7,9 +7,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
  * Build-time-generated invoker for a single {@link OnNextcloudEvent}-annotated
  * method.
  *
- * <p>
- * One implementation class is generated per handler method by
- * {@link io.github.stefanrichterhuber.nextcloudlib.deployment.NextcloudEventProcessor}
+ * One implementation class is generated per handler
  * using Gizmo. The generated code uses CDI to look-up the target bean and then
  * directly invokes the target method, without runtime reflection.
  */
