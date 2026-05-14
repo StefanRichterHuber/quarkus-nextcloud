@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.util;
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
 
 import io.quarkus.arc.Arc;
@@ -12,8 +13,8 @@ import io.quarkus.arc.ManagedContext;
 public class RequestScopedExecutor implements Executor {
     private final Executor delegate;
 
-    public RequestScopedExecutor(Executor delegate) {
-        this.delegate = delegate;
+    public RequestScopedExecutor(final Executor delegate) {
+        this.delegate = Objects.requireNonNull(delegate);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.util;
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
@@ -10,7 +11,7 @@ import io.quarkus.arc.ManagedContext;
 /**
  * Creates a new exeutor wrapping an existing one but starting
  * a request context in the new thread and pass the given credentials into the
- * NextcloudLocalAuthProvider of this new request context
+ * {@link NextcloudAuthProvider} of this new request context
  * 
  */
 public final class CredentialsAwareRequestScopedExecutor implements Executor {
@@ -19,8 +20,8 @@ public final class CredentialsAwareRequestScopedExecutor implements Executor {
     private final NextcloudUserCredentials credentials;
 
     public CredentialsAwareRequestScopedExecutor(Executor delegate, NextcloudUserCredentials credentials) {
-        this.delegate = delegate;
-        this.credentials = credentials;
+        this.delegate = Objects.requireNonNull(delegate);
+        this.credentials = Objects.requireNonNull(credentials);
     }
 
     @Override
