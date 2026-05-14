@@ -12,7 +12,6 @@
     <modules>
         <module>deployment</module>
         <module>runtime</module>
-        <module>integration-tests</module>
     </modules>
 
     <properties>
@@ -115,6 +114,13 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>integration-tests</id>
+            <modules>
+                <module>integration-tests</module>
+            </modules>
+        </profile>
+
         <!-- Release profile. Ensures that the wasm file is released optimized and that the final
         jar is signed -->
         <profile>
