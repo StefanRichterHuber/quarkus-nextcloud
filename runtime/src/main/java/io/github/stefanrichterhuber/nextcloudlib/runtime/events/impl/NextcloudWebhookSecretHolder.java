@@ -38,7 +38,7 @@ public class NextcloudWebhookSecretHolder {
             new SecureRandom().nextBytes(bytes);
             String generated = HexFormat.of().formatHex(bytes);
             LOG.warn("nextcloud.webhook.secret is not configured. " +
-                    "A random secret has been generated for this startup: " + generated + ". " +
+                    "A random secret has been generated for this startup. " +
                     "This secret changes on every restart, causing the Nextcloud webhook " +
                     "registration to fail after a restart. " +
                     "Set nextcloud.webhook.secret in your configuration to a stable value.");

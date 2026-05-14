@@ -38,7 +38,7 @@ public class NextcloudEventDispatcher {
                 if (Objects.equals(eventClass, invokerEvent)) {
 
                     try {
-                        Executor executor = null;
+                        final Executor executor;
                         if (invoker.provideAuthProvider()) {
                             if (event.authentication() != null && event.authentication().trigger() != null) {
                                 final String user = event.authentication().trigger().userId();
@@ -55,9 +55,7 @@ public class NextcloudEventDispatcher {
                         } else {
                             executor = new RequestScopedExecutor(scheduledExecutorService);
                         }
-                        if (executor != null) {
-                            executor.execute(() -> invoker.invoke(event));
-                        }
+                        executor.execute(() -> invoker.invoke(event));
                         break;
                     } catch (Exception e) {
                         logger.errorf(e, "Failed to dispatch event <%s>", event);

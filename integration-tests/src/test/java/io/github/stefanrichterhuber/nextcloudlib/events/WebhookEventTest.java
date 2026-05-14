@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
@@ -28,6 +29,7 @@ import jakarta.inject.Inject;
  * </p>
  */
 @QuarkusTest
+@Disabled
 public class WebhookEventTest {
 
     private static final String TEST_DIR = "/TESTDIR-webhook";

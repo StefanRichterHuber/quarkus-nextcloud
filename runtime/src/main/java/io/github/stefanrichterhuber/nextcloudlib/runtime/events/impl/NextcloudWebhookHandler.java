@@ -2,8 +2,6 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Objects;
-
 import org.jboss.logging.Logger;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -48,8 +46,8 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         final String expectedSecret = secretHolder.getSecret();
         final String actualSecret = ctx.request().getHeader(config.header());
 
-        // Runtime of the password check indepentend of password length!
-        if (!MessageDigest.isEqual(
+        // Runtime of the password check independent of password length!
+        if (actualSecret == null || !MessageDigest.isEqual(
                 actualSecret.getBytes(StandardCharsets.UTF_8),
                 expectedSecret.getBytes(StandardCharsets.UTF_8))) {
             LOG.warn("Rejected webhook request: missing or invalid secret header");
@@ -59,7 +57,7 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
 
         // Check if content-type is json
         final String contentType = ctx.request().getHeader("Content-Type");
-        if (!Objects.equals("application/json", contentType)) {
+        if (contentType == null || !contentType.startsWith("application/json")) {
             LOG.warn("Rejected webhook request: wrong content type");
             ctx.response().setStatusCode(401).end();
             return;
