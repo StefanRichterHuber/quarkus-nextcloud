@@ -33,8 +33,6 @@ public final class CredentialsAwareRequestScopedExecutor implements Executor {
             try {
                 authProvider.setCredentials(credentials);
                 command.run();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             } finally {
                 ctx.terminate();
             }

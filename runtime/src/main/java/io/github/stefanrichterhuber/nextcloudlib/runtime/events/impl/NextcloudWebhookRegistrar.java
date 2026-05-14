@@ -1,11 +1,14 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAdmin;
@@ -18,8 +21,10 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhoo
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
+import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -66,6 +71,11 @@ public class NextcloudWebhookRegistrar {
     @Inject
     Instance<NextcloudEventInvoker> invokers;
 
+    @Inject
+    ManagedExecutor scheduledExecutorService;
+
+    private final List<WebhookMessage> registeredWebhooks = new ArrayList<>();
+
     private String webhookUrl() {
         String host = config.host();
         if (host.endsWith("/")) {
@@ -98,18 +108,51 @@ public class NextcloudWebhookRegistrar {
                 new TokenNeeded(List.of(), List.of("trigger")));
     }
 
-    private void registerOne(NextcloudWebhookRestClient client, String className) {
+    /**
+     * Registers one new webhook for a given event class
+     * 
+     * @param client    Client to access nextcloud
+     * @param className Event class
+     * @return ID of the webhook on success
+     */
+    private WebhookMessage registerOne(NextcloudWebhookRestClient client, String className) {
         try {
             OCSMessage<WebhookMessage> response = client.registerWebhook(buildMessage(className));
             if (response.ocs().meta().statuscode() == 200) {
                 LOG.infof("Registered webhook for event: %s", className);
+                return response.ocs().data();
             } else {
                 LOG.errorf("Failed to register webhook for %s: %s",
                         className, response.ocs().meta().message());
+
             }
         } catch (WebApplicationException e) {
             LOG.errorf(e, "Failed to register webhook for %s: HTTP %d",
                     className, e.getResponse().getStatus());
+        }
+        return null;
+    }
+
+    /**
+     * If enabled, deletes all webhooks registred by this client
+     * 
+     * @param ev Shutdown event
+     */
+    void onStop(@Observes ShutdownEvent ev) {
+
+        if (config.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
+            final NextcloudWebhookRestClient client = buildClient();
+            LOG.infof("Deleteing registred webhooks: %s",
+                    this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));
+
+            for (WebhookMessage wm : this.registeredWebhooks) {
+                try {
+                    client.deleteWebhook(wm.id());
+                    LOG.infof("Successfully deleted webhook with id %s", wm.id());
+                } catch (Exception e) {
+                    LOG.errorf(e, "Failed to delete webhook with id %s", wm.id());
+                }
+            }
         }
     }
 
@@ -164,7 +207,7 @@ public class NextcloudWebhookRegistrar {
 
                 if (existing == null) {
                     LOG.infof("Registering webhook for %s at %s", className, url);
-                    registerOne(client, className);
+                    this.registeredWebhooks.add(registerOne(client, className));
                 }
             }
         } catch (WebApplicationException e) {

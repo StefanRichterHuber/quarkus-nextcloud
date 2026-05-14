@@ -23,8 +23,6 @@ public class RequestScopedExecutor implements Executor {
             ctx.activate();
             try {
                 command.run();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             } finally {
                 ctx.terminate();
             }

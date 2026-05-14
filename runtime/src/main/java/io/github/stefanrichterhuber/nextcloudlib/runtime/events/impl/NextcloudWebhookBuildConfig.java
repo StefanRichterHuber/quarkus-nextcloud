@@ -62,4 +62,11 @@ public interface NextcloudWebhookBuildConfig {
      */
     @WithDefault("false")
     boolean alwaysRegister();
+
+    /**
+     * When {@code true} the webhook registred are deleted on shutdown
+     * 
+     */
+    @WithDefault("true")
+    boolean deregisterWebhooksOnShutdown();
 }
