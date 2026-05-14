@@ -6,7 +6,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.quarkus.arc.DefaultBean;
 import jakarta.annotation.Priority;
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 
