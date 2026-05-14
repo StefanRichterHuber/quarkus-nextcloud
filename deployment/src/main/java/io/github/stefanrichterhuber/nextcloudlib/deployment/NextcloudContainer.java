@@ -149,11 +149,11 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
         super.start();
         if (webhookWorkerEnabled) {
             // Start webhook worker in background
-            executorService.schedule(() -> {
+            executorService.scheduleAtFixedRate(() -> {
                 while (isRunning()) {
                     occ(OCC_COMMAND_WEBHOOK_CALL);
                 }
-            }, 20, java.util.concurrent.TimeUnit.SECONDS);
+            }, 0, 20, java.util.concurrent.TimeUnit.SECONDS);
         }
     }
 
