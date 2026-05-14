@@ -10,26 +10,12 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvi
 /**
  * Marks a CDI bean method as a Nextcloud webhook event handler.
  *
- * <p>
  * The annotated method must declare exactly one parameter of type
  * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent}.
  * The extension will automatically register a webhook listener with Nextcloud
  * on startup and dispatch matching events to the method.
- * </p>
  *
- * <pre>
- * {
- *     &#64;code
- *     &#64;ApplicationScoped
- *     public class MyBean {
  *
- *         @OnNextcloudEvent(events = { NextcloudEvent.FileNodeCreatedEvent, NextcloudEvent.FileNodeDeletedEvent })
- *         public void onFileChanged(NextcloudEvent<?> event) {
- *             // handle event
- *         }
- *     }
- * }
- * </pre>
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

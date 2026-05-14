@@ -45,21 +45,18 @@ public interface NextcloudAuthProvider {
     /**
      * User for basic auth header
      *
-     * @return
      */
     void setUser(String user);
 
     /**
      * Password for basic auth header
      *
-     * @return
      */
     void setPassword(String password);
 
     /**
      * Nextcloud URL to connect to, e.g. https://nextcloud.example.com:8080
      *
-     * @return
      */
     void setServer(String server);
 
