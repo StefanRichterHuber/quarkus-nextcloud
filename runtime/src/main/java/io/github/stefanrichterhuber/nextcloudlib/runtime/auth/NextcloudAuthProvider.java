@@ -6,6 +6,10 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCre
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
+/**
+ * CDI Beans implementing this interface are used to provide location of the
+ * nextcloud server and credentials for the current nextcloud user
+ */
 public interface NextcloudAuthProvider {
     public static final int STANDARD_PRIORITY = 1000;
 
@@ -24,39 +28,42 @@ public interface NextcloudAuthProvider {
     /**
      * User for basic auth header
      *
-     * @return
+     * @return current user
      */
     String getUser();
 
     /**
      * Password for basic auth header
      *
-     * @return
+     * @return Password of the current user
      */
     String getPassword();
 
     /**
      * Nextcloud URL to connect to, e.g. https://nextcloud.example.com:8080
      *
-     * @return
+     * @return Nextcloud server
      */
     String getServer();
 
     /**
      * User for basic auth header
-     *
+     * 
+     * @param user User to set
      */
     void setUser(String user);
 
     /**
      * Password for basic auth header
-     *
+     * 
+     * @param password Password to set
      */
     void setPassword(String password);
 
     /**
      * Nextcloud URL to connect to, e.g. https://nextcloud.example.com:8080
-     *
+     * 
+     * @param server Server to set
      */
     void setServer(String server);
 
@@ -75,6 +82,13 @@ public interface NextcloudAuthProvider {
             this.setPassword(null);
             this.setServer(null);
         }
+    }
+
+    /**
+     * Returns the {@link NextcloudUserCredentials} for the current user
+     */
+    default NextcloudUserCredentials getCredentials() {
+        return new NextcloudUserCredentials(this.getUser(), this.getPassword(), this.getServer());
     }
 
     /**
