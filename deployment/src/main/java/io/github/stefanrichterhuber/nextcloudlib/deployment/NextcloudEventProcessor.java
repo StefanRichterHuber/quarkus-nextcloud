@@ -260,7 +260,8 @@ class NextcloudEventProcessor {
      */
     private static void buildInvokeMethod(ClassCreator cc, String declaringClassName, String methodName) {
         FieldCreator fc = cc.getFieldCreator("delegate", declaringClassName);
-        fc.setModifiers(0); // package-private: ArC's generated _Bean class accesses this field via direct bytecode
+        fc.setModifiers(0); // package-private: ArC's generated _Bean class accesses this field via direct
+                            // bytecode
         fc.addAnnotation(Inject.class);
 
         MethodCreator mc = cc.getMethodCreator("invoke", void.class, NextcloudEvent.class);

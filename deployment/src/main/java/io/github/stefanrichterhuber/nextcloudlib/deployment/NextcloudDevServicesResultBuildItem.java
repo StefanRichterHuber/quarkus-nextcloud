@@ -20,10 +20,7 @@ import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 public class NextcloudDevServicesResultBuildItem {
     private static final String APP_API_DEFAULT_SECRET = "1234567890";
     private static final int SERVICE_PORT = 80;
-    private static final String SERVICE_IMAGE = "nextcloud:latest";
-    private static final String ADMIN_USER = "admin";
     private static final String ADMIN_PASSWORD = RandomStringUtils.secure().nextAlphanumeric(12);
-    private static final int DEFAULT_LOG_LEVEL = 0; // 0 Debug, 1 Info, 2 Warning, 3 Error, 4 Fatal
 
     public static final String NEXTCLOUD_URL_PROPERTY = "nextcloud.url";
     public static final String NEXTCLOUD_USER_PROPERTY = "nextcloud.user";
@@ -37,7 +34,7 @@ public class NextcloudDevServicesResultBuildItem {
     private static final Logger log = Logger.getLogger(NextcloudDevServicesResultBuildItem.class);
 
     @BuildStep(onlyIfNot = IsProduction.class, onlyIf = DevServicesConfig.Enabled.class)
-    public DevServicesResultBuildItem createContainer()
+    public DevServicesResultBuildItem createContainer(NextcloudDevServicesConfig serviceConfig)
             throws IOException, UnsupportedOperationException, InterruptedException {
 
         // First check if a nextcloud instance is configured. If it is, no necessity to
@@ -49,27 +46,13 @@ public class NextcloudDevServicesResultBuildItem {
             return null;
         }
 
-        final String image = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.dev-services.image", String.class)
-                .orElse(SERVICE_IMAGE);
-        final String user = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.dev-services.user", String.class)
-                .orElse(ADMIN_USER);
-        final String password = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.dev-services.password", String.class)
-                .orElse(ADMIN_PASSWORD);
-        final int logLevel = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.dev-services.log-level", Integer.class)
-                .orElse(DEFAULT_LOG_LEVEL);
-        final List<String> apps = ConfigProvider.getConfig()
-                .getOptionalValues("nextcloud.dev-services.apps", String.class)
-                .orElse(List.of());
-        final Boolean appApiSupport = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.ex-app", Boolean.class).orElse(false);
-        final Boolean webhookWorkerEnabled = ConfigProvider.getConfig()
-                .getOptionalValue("nextcloud.dev-services.enable-webhook-worker", Boolean.class)
-                .orElse(false);
-
+        final String image = serviceConfig.image();
+        final String user = serviceConfig.user();
+        final String password = serviceConfig.password().orElse(ADMIN_PASSWORD);
+        final int logLevel = serviceConfig.logLevel();
+        final List<String> apps = serviceConfig.apps().orElse(List.of());
+        final Boolean appApiSupport = serviceConfig.enableExApp();
+        final Boolean webhookWorkerEnabled = serviceConfig.enableWebhookWorker();
         final NextcloudContainer container = new NextcloudContainer(image, user, password);
         container.withApps(apps);
         container.withLogLevel(logLevel);
@@ -83,6 +66,9 @@ public class NextcloudDevServicesResultBuildItem {
         container.withReuse(true);
         // Necessary to reach external apps like this one
         container.withExtraHost("host.docker.internal", "host-gateway");
+        container.withLogConsumer(of -> {
+            log.info(of.getUtf8StringWithoutLineEnding());
+        });
         container.start();
 
         // Prepare configuration to return
@@ -150,12 +136,12 @@ public class NextcloudDevServicesResultBuildItem {
         appApiConfigOverrides.put("aa.version", "1.0.0");
         appApiConfigOverrides.put("app.secret", appSecret);
         appApiConfigOverrides.put("app.id", appName);
-        appApiConfigOverrides.put("app.display.name", appName);
+        appApiConfigOverrides.put("app.display-name", appName);
         appApiConfigOverrides.put("app.version", appVersion);
         appApiConfigOverrides.put("app.host", "0.0.0.0");
         appApiConfigOverrides.put("app.port", appPort);
         appApiConfigOverrides.put("app.protocol", "http");
-        appApiConfigOverrides.put("app.persistent.storage", appPersistentStorage);
+        appApiConfigOverrides.put("app.persistent-storage", appPersistentStorage);
 
         appApiConfigOverrides.putAll(configOverrides);
 

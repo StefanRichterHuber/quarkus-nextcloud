@@ -38,7 +38,8 @@ import jakarta.ws.rs.core.MediaType;
  * This bean is only added to the CDI container when at least one
  * {@link OnNextcloudEvent} handler method is present. On startup it queries the
  * Nextcloud webhook API, skips already-registered webhooks (unless
- * {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}), and
+ * {@link NextcloudWebhookStaticBuildConfig#alwaysRegister()} is {@code true}),
+ * and
  * registers any missing ones.
  * </p>
  *
@@ -59,7 +60,7 @@ public class NextcloudWebhookRegistrar {
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookRegistrar.class);
 
     @Inject
-    NextcloudWebhookBuildConfig config;
+    NextcloudWebhookBuildConfig staticConfig;
 
     @Inject
     NextcloudWebhookSecretHolder secretHolder;
@@ -77,11 +78,11 @@ public class NextcloudWebhookRegistrar {
     private final List<WebhookMessage> registeredWebhooks = new ArrayList<>();
 
     private String webhookUrl() {
-        String host = config.host();
+        String host = staticConfig.host();
         if (host.endsWith("/")) {
             host = host.substring(0, host.length() - 1);
         }
-        String path = config.path();
+        String path = staticConfig.path();
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
@@ -104,7 +105,7 @@ public class NextcloudWebhookRegistrar {
                         "Content-Type", MediaType.APPLICATION_JSON,
                         "Accept", MediaType.APPLICATION_JSON),
                 AuthMethod.HEADER,
-                Map.of(config.header(), secretHolder.getSecret()),
+                Map.of(staticConfig.header(), secretHolder.getSecret()),
                 new TokenNeeded(List.of(), List.of("trigger")));
     }
 
@@ -140,7 +141,7 @@ public class NextcloudWebhookRegistrar {
      */
     void onStop(@Observes ShutdownEvent ev) {
 
-        if (config.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
+        if (staticConfig.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
             final NextcloudWebhookRestClient client = buildClient();
             LOG.infof("Deleteing registred webhooks: %s",
                     this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));
@@ -195,7 +196,7 @@ public class NextcloudWebhookRegistrar {
                         .orElse(null);
 
                 if (existing != null) {
-                    if (config.alwaysRegister()) {
+                    if (staticConfig.alwaysRegister()) {
                         LOG.infof("Re-registering webhook for %s at %s (alwaysRegister=true)",
                                 className, url);
                         client.deleteWebhook(existing.id());

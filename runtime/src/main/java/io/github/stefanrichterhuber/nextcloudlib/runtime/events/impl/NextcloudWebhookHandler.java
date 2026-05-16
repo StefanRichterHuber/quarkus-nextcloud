@@ -20,7 +20,7 @@ import io.vertx.ext.web.RoutingContext;
  *
  * <p>
  * This handler is registered as a Vert.x route at the path configured by
- * {@link NextcloudWebhookBuildConfig#path()} (default {@code /webhook}).
+ * {@link NextcloudWebhookStaticBuildConfig#path()} (default {@code /webhook}).
  * It is instantiated by {@link NextcloudWebhookRecorder} at static-init time
  * and therefore cannot use constructor injection. All collaborators are
  * resolved lazily from the CDI container via {@link Arc#container()} on each
@@ -41,7 +41,8 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
 
     @Override
     public void handle(RoutingContext ctx) {
-        NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class).get();
+        NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class)
+                .get();
         NextcloudWebhookSecretHolder secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
 
         final String expectedSecret = secretHolder.getSecret();
