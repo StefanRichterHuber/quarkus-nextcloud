@@ -40,7 +40,7 @@ public interface NextcloudDevServicesConfig {
      * 
      * @return
      */
-    @WithDefault("0")
+    @WithDefault("1")
     int logLevel();
 
     /**
