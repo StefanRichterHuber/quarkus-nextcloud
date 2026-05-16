@@ -130,7 +130,7 @@ public class NextcloudDevServicesResultBuildItem {
         // Workaround for "Webhook(3) call failed: Host \"host.docker.internal\"
         // violates local access rules"
         // ./occ config:system:set allow_local_remote_servers --value true --type bool
-        container.occ("config:system:set", "allow_local_remote_servers", "--value", "true", "--type", "bool");
+        container.occ("config:system:set", "allow_local_remote_servers", "--value", "true", "--type", "bool").join();
 
         if (webhookWorkerEnabled) {
             // Start webhook worker in background
