@@ -212,6 +212,9 @@ public class NextcloudDevServicesResultBuildItem {
 
         final String jsonInfo = om.writeValueAsString(jsonInfoObj);
 
+        // This must happen completly async, since nextcloud wants to access the
+        // /heartbeat /init and /enabled endpoints which are only available after the
+        // full start of the dev service
         container.occ("app_api:daemon:register", daemonName, "Quarkus Dev Services Nextcloud",
                 "manual-install", "http", "host.docker.internal", nextcloudUrl)
                 .thenCompose(success -> {
