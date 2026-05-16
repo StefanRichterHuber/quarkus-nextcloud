@@ -37,6 +37,7 @@ public class NextcloudAPIClientHeaders implements ClientHeadersFactory {
             result.putSingle("EX-APP-ID", appConfig.id().get());
             result.putSingle("EX-APP-VERSION", appConfig.version().get());
             result.putSingle("OCS-APIRequest", "true");
+            result.putSingle("User-Agent", appConfig.id().get());
 
             final String user = provider.getUser();
             final String secret = appConfig.secret().get();

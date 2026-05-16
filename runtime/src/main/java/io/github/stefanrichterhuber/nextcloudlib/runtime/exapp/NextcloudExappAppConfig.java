@@ -1,11 +1,13 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.exapp;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import io.quarkus.runtime.annotations.ConfigPhase;
 import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 
 @ConfigMapping(prefix = "app")
 @ConfigRoot(phase = ConfigPhase.RUN_TIME)
@@ -66,4 +68,10 @@ public interface NextcloudExappAppConfig {
      * @return
      */
     Optional<Path> persistentStorage();
+
+    /**
+     * Scopes of the app
+     */
+    @WithDefault("SYSTEM,FILES,FILES_SHARING,USER_INFO,USER_STATUS,NOTIFICATIONS,WEATHER_STATUS,TALK,EVENTS_LISTENER")
+    Optional<List<String>> scopes();
 }
