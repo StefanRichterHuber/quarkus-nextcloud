@@ -63,6 +63,7 @@ public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityCont
         return new HashSet<>(permissions);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Credential> T getCredential(Class<T> credentialType) {
         if (NextcloudUserCredentials.class.isAssignableFrom(credentialType)) {
@@ -79,6 +80,7 @@ public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityCont
         return Set.of();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> T getAttribute(String name) {
         return (T) objectMap.get(name);

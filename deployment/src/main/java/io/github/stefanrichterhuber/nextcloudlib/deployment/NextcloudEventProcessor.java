@@ -1,6 +1,5 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
-import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,9 +18,6 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWe
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookSecretHolder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
-import io.quarkus.arc.Arc;
-import io.quarkus.arc.ArcContainer;
-import io.quarkus.arc.InstanceHandle;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanGizmoAdaptor;
@@ -35,28 +31,31 @@ import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.gizmo.ClassCreator;
 import io.quarkus.gizmo.ClassOutput;
+import io.quarkus.gizmo.FieldCreator;
 import io.quarkus.gizmo.MethodCreator;
 import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
-import io.quarkus.gizmo.CatchBlockCreator;
-import io.quarkus.gizmo.TryBlock;
 import io.quarkus.vertx.http.deployment.HttpRootPathBuildItem;
 import io.quarkus.vertx.http.deployment.RouteBuildItem;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 /**
  * Quarkus build-time processor that wires the Nextcloud event-handling
  * infrastructure.
  *
- * <p>Responsibilities:</p>
+ * <p>
+ * Responsibilities:
+ * </p>
  * <ul>
- *   <li>Scans the Jandex index for {@link OnNextcloudEvent}-annotated methods.</li>
- *   <li>Generates a {@link NextcloudEventInvoker} implementation per handler via
- *       Gizmo so dispatch is a direct method call, not reflection.</li>
- *   <li>Registers all required CDI beans, including the declaring classes of
- *       handler methods, so that plain POJOs are automatically promoted to
- *       {@link ApplicationScoped} beans.</li>
- *   <li>Registers the Vert.x webhook route at build time.</li>
+ * <li>Scans the Jandex index for {@link OnNextcloudEvent}-annotated
+ * methods.</li>
+ * <li>Generates a {@link NextcloudEventInvoker} implementation per handler via
+ * Gizmo so dispatch is a direct method call, not reflection.</li>
+ * <li>Registers all required CDI beans, including the declaring classes of
+ * handler methods, so that plain POJOs are automatically promoted to
+ * {@link ApplicationScoped} beans.</li>
+ * <li>Registers the Vert.x webhook route at build time.</li>
  * </ul>
  */
 class NextcloudEventProcessor {
@@ -71,11 +70,14 @@ class NextcloudEventProcessor {
      * methods and produces one {@link NextcloudEventHandlerBuildItem} per valid
      * handler.
      *
-     * <p>Validation rules (build fails fast if violated):</p>
+     * <p>
+     * Validation rules (build fails fast if violated):
+     * </p>
      * <ul>
-     *   <li>Annotation must be on a method.</li>
-     *   <li>Method must have exactly one parameter of type {@link NextcloudEvent}.</li>
-     *   <li>At least one event class name must be specified in {@code events()}.</li>
+     * <li>Annotation must be on a method.</li>
+     * <li>Method must have exactly one parameter of type
+     * {@link NextcloudEvent}.</li>
+     * <li>At least one event class name must be specified in {@code events()}.</li>
      * </ul>
      *
      * @param index    the combined Jandex index provided by Quarkus
@@ -107,6 +109,11 @@ class NextcloudEventProcessor {
                                 + " parameter must be NextcloudEvent, found: " + paramType.name());
             }
 
+            if (method.returnType().kind() != Type.Kind.VOID) {
+                throw new IllegalStateException(
+                        "@OnNextcloudEvent method " + location + " must return void");
+            }
+
             final String[] eventClassNames = ann.value("events").asStringArray();
             if (eventClassNames == null || eventClassNames.length == 0) {
                 throw new IllegalStateException(
@@ -133,17 +140,24 @@ class NextcloudEventProcessor {
      * handler was discovered. Generates a Gizmo {@link NextcloudEventInvoker}
      * class per handler so dispatch is a direct method invocation, not reflection.
      *
-     * <p>The declaring class of each handler method is registered as an additional
+     * <p>
+     * The declaring class of each handler method is registered as an additional
      * CDI bean with {@link ApplicationScoped} as the default scope. This ensures
      * that plain POJOs (without an explicit scope annotation) are automatically
-     * promoted to CDI beans and do not require manual registration.</p>
+     * promoted to CDI beans and do not require manual registration.
+     * </p>
      *
-     * @param handlers          discovered handler descriptors from {@link #discoverEventHandlers}
+     * @param handlers          discovered handler descriptors from
+     *                          {@link #discoverEventHandlers}
      * @param additionalBeans   producer for additional CDI bean registrations
-     * @param syntheticBeans    producer for synthetic CDI bean build items (reserved for future use)
-     * @param generatedClasses  producer for generated class build items (reserved for future use)
-     * @param generatedBeans    producer for generated bean build items used by Gizmo
-     * @param reflectiveClasses producer for native-image reflective class registrations (reserved for future use)
+     * @param syntheticBeans    producer for synthetic CDI bean build items
+     *                          (reserved for future use)
+     * @param generatedClasses  producer for generated class build items (reserved
+     *                          for future use)
+     * @param generatedBeans    producer for generated bean build items used by
+     *                          Gizmo
+     * @param reflectiveClasses producer for native-image reflective class
+     *                          registrations (reserved for future use)
      */
     @BuildStep
     void setupEventHandling(
@@ -190,18 +204,22 @@ class NextcloudEventProcessor {
      * Generates a {@link NextcloudEventInvoker} implementation for a single
      * {@link OnNextcloudEvent}-annotated method.
      *
-     * <p>The generated class obtains the handler bean via
-     * {@link ArcContainer#instance(Class, Annotation...)} and invokes the target
-     * method directly (no reflection). The {@link InstanceHandle} is always
-     * destroyed in a {@code finally} block to correctly manage the lifecycle of
-     * all CDI scopes, including {@code @Dependent}.</p>
+     * <p>
+     * The generated class holds the handler bean via an {@code @Inject} field and
+     * invokes the target method directly (no reflection). CDI manages the bean
+     * lifecycle through normal injection semantics.
+     * </p>
      *
      * @param classOutput        Gizmo output to write the generated class bytes to
-     * @param declaringClassName fully-qualified name of the class that declares the handler method
+     * @param declaringClassName fully-qualified name of the class that declares the
+     *                           handler method
      * @param methodName         name of the handler method
-     * @param events             Nextcloud PHP event class names the handler listens for
-     * @param tokenNeeded        whether a temporary auth token should be requested from Nextcloud
-     * @param provideAuth        whether a {@code NextcloudAuthProvider} should be made available in the request context
+     * @param events             Nextcloud PHP event class names the handler listens
+     *                           for
+     * @param tokenNeeded        whether a temporary auth token should be requested
+     *                           from Nextcloud
+     * @param provideAuth        whether a {@code NextcloudAuthProvider} should be
+     *                           made available in the request context
      * @return the fully-qualified name of the generated invoker class
      */
     private static String generateInvoker(ClassOutput classOutput, String declaringClassName,
@@ -229,49 +247,31 @@ class NextcloudEventProcessor {
      * Generates the {@code invoke(NextcloudEvent)} method body for the given
      * declaring class and handler method name.
      *
-     * <p>The generated bytecode resolves the handler bean via
-     * {@link ArcContainer#instance(Class, Annotation...)} and invokes the target
-     * method in a {@code try} block. The {@link InstanceHandle} is destroyed in a
-     * {@code finally} block so that {@code @Dependent}-scoped beans are not leaked.</p>
+     * <p>
+     * The generated bytecode reads an {@code @Inject}-ed delegate field and invokes
+     * the target method directly. CDI manages the delegate's lifecycle through
+     * normal injection semantics.
+     * </p>
      *
      * @param cc                 class creator for the invoker being generated
      * @param declaringClassName fully-qualified name of the handler bean class
-     * @param methodName         name of the {@link OnNextcloudEvent}-annotated method
+     * @param methodName         name of the {@link OnNextcloudEvent}-annotated
+     *                           method
      */
     private static void buildInvokeMethod(ClassCreator cc, String declaringClassName, String methodName) {
+        FieldCreator fc = cc.getFieldCreator("delegate", declaringClassName);
+        fc.setModifiers(0); // package-private: ArC's generated _Bean class accesses this field via direct bytecode
+        fc.addAnnotation(Inject.class);
+
         MethodCreator mc = cc.getMethodCreator("invoke", void.class, NextcloudEvent.class);
 
-        ResultHandle container = mc.invokeStaticMethod(
-                MethodDescriptor.ofMethod(Arc.class, "container", ArcContainer.class));
+        ResultHandle bean = mc.readInstanceField(fc.getFieldDescriptor(), mc.getThis());
 
-        ResultHandle handle = mc.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(ArcContainer.class, "instance", InstanceHandle.class,
-                        Class.class, Annotation[].class),
-                container,
-                mc.loadClassFromTCCL(declaringClassName),
-                mc.newArray(Annotation.class, 0));
-
-        MethodDescriptor destroyMethod = MethodDescriptor.ofMethod(InstanceHandle.class, "destroy", void.class);
-
-        // Gizmo has no addFinally(); simulate try-finally with a catch-rethrow on the
-        // exception path and an explicit destroy call on the normal path.
-        TryBlock tryBlock = mc.tryBlock();
-
-        ResultHandle bean = tryBlock.invokeInterfaceMethod(
-                MethodDescriptor.ofMethod(InstanceHandle.class, "get", Object.class),
-                handle);
-
-        tryBlock.invokeVirtualMethod(
+        mc.invokeVirtualMethod(
                 MethodDescriptor.ofMethod(declaringClassName, methodName, void.class, NextcloudEvent.class),
                 bean,
                 mc.getMethodParam(0));
 
-        CatchBlockCreator catchBlock = tryBlock.addCatch(Throwable.class);
-        catchBlock.invokeInterfaceMethod(destroyMethod, handle);
-        catchBlock.throwException(catchBlock.getCaughtException());
-
-        // Normal (non-exception) path: fall through from the try block.
-        mc.invokeInterfaceMethod(destroyMethod, handle);
         mc.returnVoid();
     }
 
@@ -296,8 +296,10 @@ class NextcloudEventProcessor {
      * when a temporary Nextcloud auth token must be requested for the triggering
      * user before dispatching the event.
      *
-     * <p>Returns {@code true} when either {@code tokenNeeded} or {@code provideAuth}
-     * is set, because providing an auth provider implicitly requires the token.</p>
+     * <p>
+     * Returns {@code true} when either {@code tokenNeeded} or {@code provideAuth}
+     * is set, because providing an auth provider implicitly requires the token.
+     * </p>
      *
      * @param cc          class creator for the invoker being generated
      * @param tokenNeeded value of the {@code tokenNeeded} annotation attribute
@@ -309,7 +311,8 @@ class NextcloudEventProcessor {
     }
 
     /**
-     * Generates the {@code provideAuthProvider()} method, which returns {@code true}
+     * Generates the {@code provideAuthProvider()} method, which returns
+     * {@code true}
      * when a {@code NextcloudAuthProvider} instance carrying the triggering user's
      * temporary token should be placed in the request context before the handler
      * is called.
@@ -329,8 +332,10 @@ class NextcloudEventProcessor {
      * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookHandler}.
      * Only produced when at least one {@link OnNextcloudEvent} handler exists.
      *
-     * @param recorder    Quarkus recorder used to create the handler instance at runtime
-     * @param handlers    discovered handler descriptors; route is skipped when empty
+     * @param recorder    Quarkus recorder used to create the handler instance at
+     *                    runtime
+     * @param handlers    discovered handler descriptors; route is skipped when
+     *                    empty
      * @param buildConfig webhook configuration providing the mount path
      * @param httpRoot    Quarkus HTTP root path build item for route registration
      * @param routes      producer for Vert.x route build items

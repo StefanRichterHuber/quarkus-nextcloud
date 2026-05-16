@@ -1,6 +1,5 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
-import java.util.List;
 
 import io.quarkus.builder.item.MultiBuildItem;
 
