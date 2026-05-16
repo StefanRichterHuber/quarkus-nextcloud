@@ -9,9 +9,8 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 
-import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
-import io.quarkus.arc.Arc;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.smallrye.config.SmallRyeConfig;
 import io.vertx.ext.web.RoutingContext;
 
@@ -20,13 +19,13 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
     public static final String HEADER_EX_APP_ID = "EX-APP-ID";
     public static final String HEADER_EX_APP_VERSION = "EX-APP-VERSION";
     public static final String HEADER_AUTHORIZATION_APP_API = "AUTHORIZATION-APP-API";
+    public static final String PROPERT_CREDENTIALS = "nextcloudCredentials";
 
     private static final Logger LOG = Logger.getLogger(NextcloudExAppAuthHandler.class);
 
     @Override
     public void handle(RoutingContext event) {
 
-        final String version = event.request().getHeader(HEADER_AA_VERSION);
         final String appId = event.request().getHeader(HEADER_EX_APP_ID);
         final String appVersion = event.request().getHeader(HEADER_EX_APP_VERSION);
         final String authorization = event.request().getHeader(HEADER_AUTHORIZATION_APP_API);
@@ -34,13 +33,7 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
         final SmallRyeConfig config = ConfigProvider.getConfig().unwrap(SmallRyeConfig.class);
         final NextcloudExappAppConfig appConfig = config.getConfigMapping(NextcloudExappAppConfig.class);
         final String nextcloudUrl = ConfigProvider.getConfig().getValue("nextcloud.url", String.class);
-        final String expectedAAVersion = ConfigProvider.getConfig().getValue("aa.version", String.class);
 
-        if (version == null || version.isBlank() || !Objects.equals(version, expectedAAVersion)) {
-            LOG.errorf("ExApp request missing / wrong '%s' header", HEADER_AA_VERSION);
-            event.response().setStatusCode(StatusCode.BAD_REQUEST).end();
-            return;
-        }
         if (appId == null || appId.isBlank() || !Objects.equals(appId, appConfig.id().get())) {
             LOG.errorf("ExApp request missing / wrong '%s' header", HEADER_EX_APP_ID);
             event.response().setStatusCode(StatusCode.BAD_REQUEST).end();
@@ -76,10 +69,8 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
             return;
         }
 
-        NextcloudAuthProvider authProvider = Arc.container().select(NextcloudAuthProvider.class).get();
-        authProvider.setUser(user);
-        authProvider.setPassword(password);
-        authProvider.setServer(nextcloudUrl);
+        event.put(PROPERT_CREDENTIALS, new NextcloudUserCredentials(user, password, nextcloudUrl));
+
         event.next();
     }
 

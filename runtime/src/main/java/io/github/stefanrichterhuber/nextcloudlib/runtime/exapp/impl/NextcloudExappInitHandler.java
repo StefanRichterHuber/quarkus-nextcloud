@@ -1,6 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl;
 
 import java.net.URI;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
@@ -9,6 +11,8 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvi
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient.AppInitProgress;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudInitStateProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.InjectableInstance;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
@@ -49,14 +53,18 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
 
         final NextcloudInitStateProvider stateProvider = stateProviderInstance.get();
         final ExAppApiRestClient client = getClient();
+        final NextcloudUserCredentials credentials = event.get(NextcloudExAppAuthHandler.PROPERT_CREDENTIALS);
+        final ScheduledExecutorService executorService = Arc.container().select(ScheduledExecutorService.class).get();
+        final Executor exec = new CredentialsAwareRequestScopedExecutor(executorService, credentials);
 
         // There is an NextcloudInitStateProvider, subscribe to the provided state
         stateProvider.getInitProgressReporter().subscribe().with(
                 item -> {
-                    client.reportAppInitProgress(AppInitProgress.ok(item));
+                    exec.execute(() -> client.reportAppInitProgress(AppInitProgress.ok(item)));
                 },
                 t -> {
-                    client.reportAppInitProgress(AppInitProgress.error(0, t.getMessage()));
+                    exec.execute(() -> client.reportAppInitProgress(AppInitProgress.error(0, t.getMessage())));
+                    ;
                 });
 
         event.response().putHeader("Content-Type", MediaType.APPLICATION_JSON);

@@ -3,41 +3,38 @@ package io.github.stefanrichterhuber.nextcloudlib.deployment;
 import org.jboss.logging.Logger;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappConfig;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExAppAuthHandler;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExAppEnabledHandler;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExappHeartbeatHandler;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExappInitHandler;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExAppRecorder;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Record;
 import io.quarkus.vertx.http.deployment.HttpRootPathBuildItem;
 import io.quarkus.vertx.http.deployment.RouteBuildItem;
 
-public class NextcloudExAppProcessor {
+class NextcloudExAppProcessor {
     private static final Logger LOG = Logger.getLogger(NextcloudExAppProcessor.class);
 
     @BuildStep(onlyIf = IsExApp.class)
+    @Record(ExecutionTime.RUNTIME_INIT)
     void registerWebhookRoute(
+            NextcloudExAppRecorder recorder,
             NextcloudExappConfig buildConfig,
             HttpRootPathBuildItem httpRoot,
             BuildProducer<RouteBuildItem> routes) {
 
         routes.produce(httpRoot.routeBuilder()
                 .route("/heartbeat")
-                .handler(new NextcloudExappHeartbeatHandler())
+                .handler(recorder.heartBeatHandler())
                 .displayOnNotFoundPage("Nextcloud ExApp")
                 .build());
 
         routes.produce(httpRoot.routeBuilder()
-                .route("/init")
-                .handler(new NextcloudExAppAuthHandler())
-                .handler(new NextcloudExappInitHandler())
+                .routeFunction("/init", recorder.initRoute())
                 .displayOnNotFoundPage("Nextcloud ExApp")
                 .build());
 
         routes.produce(httpRoot.routeBuilder()
-                .route("/enabled")
-                .handler(new NextcloudExAppAuthHandler())
-                .handler(new NextcloudExAppEnabledHandler())
+                .routeFunction("/enabled", recorder.enabledRoute())
                 .displayOnNotFoundPage("Nextcloud ExApp")
                 .build());
     }
