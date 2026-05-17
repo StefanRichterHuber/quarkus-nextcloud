@@ -17,7 +17,7 @@ public class NextcloudExAppEnabledHandler implements io.vertx.core.Handler<Routi
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
     public void handle(RoutingContext event) {
-        NextcloudUserCredentials credentials = event.get(NextcloudExAppAuthHandler.PROPERT_CREDENTIALS);
+        NextcloudUserCredentials credentials = event.get(NextcloudExAppAuthHandler.PROPERTY_CREDENTIALS);
 
         String enabled = event.request().getParam("enabled");
 

@@ -19,7 +19,7 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
     public static final String HEADER_EX_APP_ID = "EX-APP-ID";
     public static final String HEADER_EX_APP_VERSION = "EX-APP-VERSION";
     public static final String HEADER_AUTHORIZATION_APP_API = "AUTHORIZATION-APP-API";
-    public static final String PROPERT_CREDENTIALS = "nextcloudCredentials";
+    public static final String PROPERTY_CREDENTIALS = "nextcloudCredentials";
 
     private static final Logger LOG = Logger.getLogger(NextcloudExAppAuthHandler.class);
 
@@ -69,7 +69,7 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
             return;
         }
 
-        event.put(PROPERT_CREDENTIALS, new NextcloudUserCredentials(user, password, nextcloudUrl));
+        event.put(PROPERTY_CREDENTIALS, new NextcloudUserCredentials(user, password, nextcloudUrl));
 
         event.next();
     }

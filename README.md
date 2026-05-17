@@ -60,6 +60,7 @@ Possible config properties:
 | `nextcloud.dev-services.password` | [Random String] | Password for the Nextcloud user |
 | `nextcloud.dev-services.apps` | [Empty] | Comma-separated list of nextcloud apps to install |
 | `nextcloud.dev-services.enable-webhook-worker` | `false` | Enable the Nextcloud async webhook worker (required for webhook delivery) |
+| `nextcloud.dev-services.enable-ex-app` | `false` | Enable the AppAPI app, register a local AppAPI daemon and registers this app as Nextcloud ExApp |
 
 Config properties provided by the dev service for direct access (matching the properties required for the default authentication provider):
 
@@ -141,6 +142,33 @@ The webhook callback URL (`nextcloud.webhook.host` + `nextcloud.webhook.path`) m
 ```properties
 nextcloud.webhook.host=http://host.docker.internal:8080
 ```
+
+### Nextcloud AppAPI Support
+
+Support for developing Nextcloud [AppAPI](https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/Introduction.html) applications.
+Enabled with property `nextcloud.exapp.enabled=true` at build time, the whole infrastructure is provided.
+
+#### Provided services
+
+As of now, the library provides the necessary endpoints for the [ExApp lifecyle](https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/development_overview/ExAppLifecycle.html)
+* `/heartbeat` endpoint without authentication. It just returns `status=ok` for now
+* `/init` endpoint with authentication. If a bean of type `NextcloudExAppInitProgress` is available, it is used to report the initialization progress. If not, the endpoint just returns HTTP status `404` as per spec (no initalization necessary)
+* `/enable`endpoint with authentication. Fires `ExAppEnabledEvent` and `ExAppDisabledEvent` CDI events when the application is enabled or disabled. Observe this events to register features on the Nextcloud host.
+
+#### Dev Services
+
+When the build-time properties  `nextcloud.exapp.enabled=true` or the specfic `nextcloud.dev-services.enable-ex-app` is set to true, the dev services support this app as Nextcloud ExApp
+
+* Enable the nextcloud AppAPI
+* Register an local [AppAPI deamon](https://docs.nextcloud.com/server/stable/admin_manual/exapps_management/ManagingDeployDaemons.html) connecting the Nextcloud instance in docker with the host (host name `host.docker.internal`)
+* Registers this Quarkus app an ExApp within the daemon with the configured port ( either `quarkus.http.test-port` on test runs or `quarkus.http.port` on dev runs
+* Enables this Quarkus app 
+
+
+#### TODO
+
+* Redo file eventhandling to use the measures of AppAPI for registering event handlers
+* Provide custom auth ahndlers with configured secrets
 
 ## Limits
 
