@@ -49,3 +49,4 @@ users.json
 node_modules/
 full.html
 release.sh
+nextcloud-ctrl.sh

@@ -8,9 +8,13 @@ import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
 import io.quarkus.arc.Arc;
+import io.quarkus.arc.ManagedContext;
 import io.vertx.ext.web.RoutingContext;
 
 /**
@@ -32,16 +36,34 @@ import io.vertx.ext.web.RoutingContext;
  * <li>Validates the shared-secret header (HTTP 401 on mismatch).</li>
  * <li>Reads the request body asynchronously.</li>
  * <li>Deserialises the JSON body into a {@link NextcloudEvent}.</li>
- * <li>Forwards the event to {@link NextcloudEventDispatcher#dispatch}.</li>
+ * <li>Forwards the event to
+ * {@link DefaultNextcloudEventDispatcher#dispatch}.</li>
  * </ol>
  */
 public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingContext> {
 
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookHandler.class);
 
+    /**
+     * Processes an incoming webhook POST request from Nextcloud.
+     *
+     * <ol>
+     * <li>Rejects the request with HTTP 401 when the secret header is absent or
+     *     does not match the configured secret (constant-time comparison).</li>
+     * <li>Rejects the request with HTTP 415 when the {@code Content-Type} is not
+     *     {@code application/json}.</li>
+     * <li>Reads the request body asynchronously (the body is not pre-populated for
+     *     custom Vert.x routes).</li>
+     * <li>Deserialises the JSON payload into a {@link NextcloudEvent} and forwards
+     *     it to {@link NextcloudEventDispatcher#dispatch}.</li>
+     * </ol>
+     *
+     * @param ctx the Vert.x routing context for the current request
+     */
     @Override
     public void handle(RoutingContext ctx) {
-        NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class).get();
+        NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class)
+                .get();
         NextcloudWebhookSecretHolder secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
 
         final String expectedSecret = secretHolder.getSecret();
@@ -68,20 +90,43 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         // Quarkus REST BodyHandler, so ctx.body() is not pre-populated.
         ctx.request().body()
                 .onSuccess(buffer -> {
-                    NextcloudEventDispatcher dispatcher = Arc.container().select(NextcloudEventDispatcher.class).get();
-                    ObjectMapper mapper = Arc.container().select(ObjectMapper.class).get();
+                    final NextcloudEventDispatcher dispatcher = Arc.container()
+                            .select(NextcloudEventDispatcher.class)
+                            .get();
+                    final ObjectMapper mapper = Arc.container().select(ObjectMapper.class).get();
 
-                    String body = buffer.toString();
+                    final String body = buffer.toString();
                     if (body == null || body.isBlank()) {
                         ctx.response().setStatusCode(400).end();
                         return;
                     }
 
                     try {
-                        NextcloudEvent<Event> event = mapper.readValue(body,
+                        final NextcloudEvent<Event> event = mapper.readValue(body,
                                 new TypeReference<NextcloudEvent<Event>>() {
                                 });
-                        dispatcher.dispatch(event);
+
+                        if (event.authentication() != null && event.authentication().trigger() != null) {
+                            final String user = event.authentication().trigger().userId();
+                            final String token = event.authentication().trigger().token();
+                            final String server = event.authentication().trigger().baseUrl();
+                            final NextcloudUserCredentials credentials = new NextcloudUserCredentials(user, token,
+                                    server);
+                            dispatcher.dispatch(event, credentials);
+                        } else {
+                            // No authentication given, use NextcloudAuthProvider
+                            final ManagedContext managedContext = Arc.container().requestContext();
+                            managedContext.activate();
+                            final NextcloudAuthProvider authProvider = Arc.container()
+                                    .instance(NextcloudAuthProvider.class)
+                                    .get();
+                            try {
+                                NextcloudUserCredentials credentials = authProvider.getCredentials();
+                                dispatcher.dispatch(event, credentials);
+                            } finally {
+                                managedContext.terminate();
+                            }
+                        }
                         ctx.response().setStatusCode(200).end();
                     } catch (Exception e) {
                         LOG.errorf(e, "Failed to process webhook event body: %s", body);

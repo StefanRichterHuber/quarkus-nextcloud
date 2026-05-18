@@ -13,7 +13,7 @@ import io.smallrye.config.WithDefault;
  * <p>
  * Uses {@link ConfigPhase#BUILD_AND_RUN_TIME_FIXED} so that the Vert.x route
  * can be registered at build time (using {@code path()}) while all runtime
- * collaborators ({@link NextcloudWebhookRegistrar},
+ * collaborators ({@link NextcloudWebhookStartupRegistrar},
  * {@link NextcloudWebhookSecretHolder}, {@link NextcloudWebhookHandler}) can
  * inject the same interface via CDI.
  * </p>
@@ -64,8 +64,10 @@ public interface NextcloudWebhookBuildConfig {
     boolean alwaysRegister();
 
     /**
-     * When {@code true} the webhook registred are deleted on shutdown
-     * 
+     * When {@code true}, webhooks registered by this application are deleted
+     * from Nextcloud on shutdown.
+     *
+     * @return {@code true} to deregister webhooks on shutdown, defaults to {@code true}
      */
     @WithDefault("true")
     boolean deregisterWebhooksOnShutdown();

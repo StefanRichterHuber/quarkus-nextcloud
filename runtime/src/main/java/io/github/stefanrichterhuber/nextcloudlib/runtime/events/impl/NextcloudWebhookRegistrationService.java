@@ -18,48 +18,33 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhoo
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.HTTPMethod;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage.TokenNeeded;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 
 /**
- * Registers Nextcloud webhook listeners for every event class name discovered
- * at build time via {@link OnNextcloudEvent}.
+ * Service responsible for registering and deregistering Nextcloud webhook
+ * listeners against the Nextcloud webhook API.
  *
- * <p>
- * This bean is only added to the CDI container when at least one
- * {@link OnNextcloudEvent} handler method is present. On startup it queries the
- * Nextcloud webhook API, skips already-registered webhooks (unless
- * {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}), and
- * registers any missing ones.
- * </p>
- *
- * <p>
- * The full callback URL is constructed as
- * {@code nextcloud.webhook.host + nextcloud.webhook.path}, e.g.
- * {@code https://myapp.example.com/webhook}.
- * </p>
- *
- * <p>
- * Failures (Nextcloud unreachable, auth errors, etc.) are caught and logged so
- * that a registration problem never prevents the application from starting.
- * </p>
+ * <p>On {@link #registerWebhooks()} it queries the current list of registered
+ * webhooks, skips entries that already point to this application's callback URL
+ * (unless {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}),
+ * and registers any missing ones. The IDs of newly registered webhooks are
+ * kept in memory so they can be cleaned up by {@link #deleteRegisteredWebhooks()}.
  */
 @ApplicationScoped
-public class NextcloudWebhookRegistrar {
-
-    private static final Logger LOG = Logger.getLogger(NextcloudWebhookRegistrar.class);
+public class NextcloudWebhookRegistrationService {
+    @Inject
+    Logger logger;
 
     @Inject
-    NextcloudWebhookBuildConfig config;
+    NextcloudWebhookBuildConfig staticConfig;
 
     @Inject
     NextcloudWebhookSecretHolder secretHolder;
@@ -74,18 +59,37 @@ public class NextcloudWebhookRegistrar {
     @Inject
     ManagedExecutor scheduledExecutorService;
 
+    @Inject
+    NextcloudExappConfig exappConfig;
+
+    @Inject
+    NextcloudExappAppConfig appConfig;
+
     private final List<WebhookMessage> registeredWebhooks = new ArrayList<>();
 
     private String webhookUrl() {
-        String host = config.host();
-        if (host.endsWith("/")) {
-            host = host.substring(0, host.length() - 1);
+        if (exappConfig.enabled()) {
+            // This is an nextcloud exapp -> fetch the host from a different location
+            final String host = String.format("%s://%s:%d", appConfig.protocol(), appConfig.host(),
+                    appConfig.port());
+
+            String path = staticConfig.path();
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            return host + path;
+        } else {
+
+            String host = staticConfig.host();
+            if (host.endsWith("/")) {
+                host = host.substring(0, host.length() - 1);
+            }
+            String path = staticConfig.path();
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            return host + path;
         }
-        String path = config.path();
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        return host + path;
     }
 
     private NextcloudWebhookRestClient buildClient() {
@@ -104,64 +108,48 @@ public class NextcloudWebhookRegistrar {
                         "Content-Type", MediaType.APPLICATION_JSON,
                         "Accept", MediaType.APPLICATION_JSON),
                 AuthMethod.HEADER,
-                Map.of(config.header(), secretHolder.getSecret()),
+                Map.of(staticConfig.header(), secretHolder.getSecret()),
                 new TokenNeeded(List.of(), List.of("trigger")));
     }
 
     /**
-     * Registers one new webhook for a given event class
-     * 
-     * @param client    Client to access nextcloud
-     * @param className Event class
-     * @return ID of the webhook on success
+     * Registers one new webhook for the given Nextcloud PHP event class name.
+     *
+     * @param client    REST client configured for the Nextcloud instance
+     * @param className fully-qualified Nextcloud PHP event class name to listen for
+     * @return the registered {@link WebhookMessage} returned by Nextcloud, or
+     *         {@code null} when registration fails
      */
     private WebhookMessage registerOne(NextcloudWebhookRestClient client, String className) {
         try {
-            OCSMessage<WebhookMessage> response = client.registerWebhook(buildMessage(className));
+            final WebhookMessage request = buildMessage(className);
+            final OCSMessage<WebhookMessage> response = client.registerWebhook(request);
             if (response.ocs().meta().statuscode() == 200) {
-                LOG.infof("Registered webhook for event: %s", className);
+                logger.infof("Registered webhook for event '%s' and webhook %s to '%s'", className,
+                        request.httpMethod(),
+                        request.uri());
                 return response.ocs().data();
             } else {
-                LOG.errorf("Failed to register webhook for %s: %s",
+                logger.errorf("Failed to register webhook for %s: %s",
                         className, response.ocs().meta().message());
 
             }
         } catch (WebApplicationException e) {
-            LOG.errorf(e, "Failed to register webhook for %s: HTTP %d",
+            logger.errorf(e, "Failed to register webhook for %s: HTTP %d",
                     className, e.getResponse().getStatus());
         }
         return null;
     }
 
     /**
-     * If enabled, deletes all webhooks registred by this client
-     * 
-     * @param ev Shutdown event
+     * Registers webhooks for all event class names declared by the known
+     * {@link NextcloudEventInvoker} instances. Already-registered webhooks at the
+     * same callback URL are skipped unless
+     * {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}.
+     * Errors are caught and logged so that registration failures do not prevent
+     * the application from starting.
      */
-    void onStop(@Observes ShutdownEvent ev) {
-
-        if (config.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
-            final NextcloudWebhookRestClient client = buildClient();
-            LOG.infof("Deleteing registred webhooks: %s",
-                    this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));
-
-            for (WebhookMessage wm : this.registeredWebhooks) {
-                try {
-                    client.deleteWebhook(wm.id());
-                    LOG.infof("Successfully deleted webhook with id %s", wm.id());
-                } catch (Exception e) {
-                    LOG.errorf(e, "Failed to delete webhook with id %s", wm.id());
-                }
-            }
-        }
-    }
-
-    /**
-     * On start-up collects all NextcloudEventInvokers and select all events to
-     * handle
-     */
-    @Startup
-    void registerWebhooks() {
+    public void registerWebhooks() {
 
         Set<String> eventClassNames = new HashSet<>();
         for (NextcloudEventInvoker invoker : invokers) {
@@ -178,7 +166,7 @@ public class NextcloudWebhookRegistrar {
         try {
             OCSMessage<List<WebhookMessage>> listResponse = client.listRegisteredWebhooks();
             if (listResponse.ocs().meta().statuscode() != 200) {
-                LOG.errorf("Failed to list registered webhooks: %s",
+                logger.errorf("Failed to list registered webhooks: %s",
                         listResponse.ocs().meta().message());
                 return;
             }
@@ -195,27 +183,51 @@ public class NextcloudWebhookRegistrar {
                         .orElse(null);
 
                 if (existing != null) {
-                    if (config.alwaysRegister()) {
-                        LOG.infof("Re-registering webhook for %s at %s (alwaysRegister=true)",
+                    if (staticConfig.alwaysRegister()) {
+                        logger.infof("Re-registering webhook for %s at %s (alwaysRegister=true)",
                                 className, url);
                         client.deleteWebhook(existing.id());
                         existing = null;
                     } else {
-                        LOG.infof("Webhook for %s already registered at %s", className, url);
+                        logger.infof("Webhook for %s already registered at %s", className, url);
                     }
                 }
 
                 if (existing == null) {
-                    LOG.infof("Registering webhook for %s at %s", className, url);
+                    logger.debugf("Registering webhook for %s at %s", className, url);
                     this.registeredWebhooks.add(registerOne(client, className));
                 }
             }
         } catch (WebApplicationException e) {
-            LOG.errorf(e,
+            logger.errorf(e,
                     "Could not reach Nextcloud webhook API (HTTP %d); skipping webhook registration.",
                     e.getResponse().getStatus());
         } catch (Exception e) {
-            LOG.errorf(e, "Unexpected error during webhook registration; skipping.");
+            logger.errorf(e, "Unexpected error during webhook registration; skipping.");
         }
     }
+
+    /**
+     * Deletes all webhooks that were registered during this application's lifetime,
+     * provided {@link NextcloudWebhookBuildConfig#deregisterWebhooksOnShutdown()} is
+     * {@code true}. Errors for individual deletions are caught and logged.
+     */
+    public void deleteRegisteredWebhooks() {
+
+        if (staticConfig.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
+            final NextcloudWebhookRestClient client = buildClient();
+            logger.debugf("Deleteing registered webhooks: %s",
+                    this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));
+
+            for (WebhookMessage wm : this.registeredWebhooks) {
+                try {
+                    client.deleteWebhook(wm.id());
+                    logger.infof("Successfully deleted webhook with id %s", wm.id());
+                } catch (Exception e) {
+                    logger.errorf(e, "Failed to delete webhook with id %s", wm.id());
+                }
+            }
+        }
+    }
+
 }
