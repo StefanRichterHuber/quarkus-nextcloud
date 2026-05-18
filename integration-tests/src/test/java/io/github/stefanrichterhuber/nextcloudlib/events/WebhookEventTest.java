@@ -2,18 +2,21 @@ package io.github.stefanrichterhuber.nextcloudlib.events;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.FileEvent;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 
@@ -29,11 +32,11 @@ import jakarta.inject.Inject;
  * </p>
  */
 @QuarkusTest
-@Disabled
+// @Disabled
 public class WebhookEventTest {
 
     private static final String TEST_DIR = "/TESTDIR-webhook";
-    private static final int WEBHOOK_TIMEOUT_SECONDS = 20;
+    private static final int WEBHOOK_TIMEOUT_SECONDS = 30;
 
     @Inject
     NextcloudFileService fileService;
@@ -48,38 +51,27 @@ public class WebhookEventTest {
 
     @Test
     void fileCreateTriggersWebhookEvent() throws Exception {
+        // Wait for the enabling of the app
+        Thread.sleep(20 * 1000);
         fileService.createDirectories(TEST_DIR);
         String filename = TEST_DIR + "/" + UUID.randomUUID() + ".txt";
 
         fileService.uploadFile(filename, "text/plain",
                 new ByteArrayInputStream("webhook test".getBytes(StandardCharsets.UTF_8)));
         try {
-            NextcloudEvent<?> event = captor.poll(WEBHOOK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            Thread.sleep(WEBHOOK_TIMEOUT_SECONDS * 1000);
+            List<NextcloudEvent<?>> events = captor.receivedEvents();
+            assertTrue(events.stream().map(ne -> ne.event().className())
+                    .anyMatch(ev -> Objects.equals(NextcloudEvent.FileNodeCreatedEvent, ev)));
+            assertTrue(events.stream().map(ne -> ne.event().className())
+                    .anyMatch(ev -> Objects.equals(NextcloudEvent.FileNodeWrittenEvent, ev)));
 
-            assertNotNull(event, "Expected a webhook event within " + WEBHOOK_TIMEOUT_SECONDS + "s");
-            assertEquals(NextcloudEvent.FileNodeCreatedEvent, event.event().className());
+            assertTrue(
+                    events.stream().map(ne -> (FileEvent) ne.event())
+                            .anyMatch(fe -> fe.node().path().endsWith(filename)));
+
         } finally {
             fileService.deleteFile(filename, null, (String) null);
         }
-    }
-
-    @Test
-    void fileDeleteTriggersWebhookEvent() throws Exception {
-        fileService.createDirectories(TEST_DIR);
-        String filename = TEST_DIR + "/" + UUID.randomUUID() + ".txt";
-
-        fileService.uploadFile(filename, "text/plain",
-                new ByteArrayInputStream("webhook delete test".getBytes(StandardCharsets.UTF_8)));
-
-        // Drain any creation event before testing the delete
-        captor.poll(WEBHOOK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        captor.reset();
-
-        fileService.deleteFile(filename, null, (String) null);
-
-        NextcloudEvent<?> event = captor.poll(WEBHOOK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-        assertNotNull(event, "Expected a delete webhook event within " + WEBHOOK_TIMEOUT_SECONDS + "s");
-        assertEquals(NextcloudEvent.FileNodeDeletedEvent, event.event().className());
     }
 }

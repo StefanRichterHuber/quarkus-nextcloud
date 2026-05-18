@@ -1,5 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.events;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +38,12 @@ public class WebhookEventCaptor {
      */
     public NextcloudEvent<?> poll(long timeout, TimeUnit unit) throws InterruptedException {
         return queue.poll(timeout, unit);
+    }
+
+    public List<NextcloudEvent<?>> receivedEvents() {
+        List<NextcloudEvent<?>> result = new ArrayList<>();
+        queue.drainTo(result);
+        return result;
     }
 
     /**

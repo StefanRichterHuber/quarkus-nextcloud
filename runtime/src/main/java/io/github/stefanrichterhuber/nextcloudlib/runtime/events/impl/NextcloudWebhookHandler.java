@@ -44,27 +44,40 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
 
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookHandler.class);
 
+    private final NextcloudWebhookBuildConfig config;
+    private final NextcloudWebhookSecretHolder secretHolder;
+    private final NextcloudEventDispatcher dispatcher;
+    private final ObjectMapper mapper;
+
+    public NextcloudWebhookHandler() {
+        config = Arc.container().select(NextcloudWebhookBuildConfig.class)
+                .get();
+        secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
+
+        dispatcher = Arc.container()
+                .select(NextcloudEventDispatcher.class)
+                .get();
+        mapper = Arc.container().select(ObjectMapper.class).get();
+    }
+
     /**
      * Processes an incoming webhook POST request from Nextcloud.
      *
      * <ol>
      * <li>Rejects the request with HTTP 401 when the secret header is absent or
-     *     does not match the configured secret (constant-time comparison).</li>
+     * does not match the configured secret (constant-time comparison).</li>
      * <li>Rejects the request with HTTP 415 when the {@code Content-Type} is not
-     *     {@code application/json}.</li>
+     * {@code application/json}.</li>
      * <li>Reads the request body asynchronously (the body is not pre-populated for
-     *     custom Vert.x routes).</li>
+     * custom Vert.x routes).</li>
      * <li>Deserialises the JSON payload into a {@link NextcloudEvent} and forwards
-     *     it to {@link NextcloudEventDispatcher#dispatch}.</li>
+     * it to {@link NextcloudEventDispatcher#dispatch}.</li>
      * </ol>
      *
      * @param ctx the Vert.x routing context for the current request
      */
     @Override
     public void handle(RoutingContext ctx) {
-        NextcloudWebhookBuildConfig config = Arc.container().select(NextcloudWebhookBuildConfig.class)
-                .get();
-        NextcloudWebhookSecretHolder secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
 
         final String expectedSecret = secretHolder.getSecret();
         final String actualSecret = ctx.request().getHeader(config.header());
@@ -90,10 +103,6 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         // Quarkus REST BodyHandler, so ctx.body() is not pre-populated.
         ctx.request().body()
                 .onSuccess(buffer -> {
-                    final NextcloudEventDispatcher dispatcher = Arc.container()
-                            .select(NextcloudEventDispatcher.class)
-                            .get();
-                    final ObjectMapper mapper = Arc.container().select(ObjectMapper.class).get();
 
                     final String body = buffer.toString();
                     if (body == null || body.isBlank()) {
