@@ -97,7 +97,21 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 
+/**
+ * Quarkus build-time processor that registers all classes requiring
+ * reflection for native-image compilation. Covers Sardine WebDAV model
+ * classes, Apache HTTP auth scheme classes, and Nextcloud lib model/DTO classes.
+ */
 public class ReflectionRegistrationProcessor {
+
+    /**
+     * Produces a {@link ReflectiveClassBuildItem} with constructors, methods, and
+     * fields enabled for all Sardine model types, Apache HTTP auth scheme types,
+     * and Nextcloud lib domain classes that are accessed via reflection at runtime
+     * (e.g. Jackson deserialization, JAXB unmarshalling).
+     *
+     * @return the reflective-class registration build item
+     */
     @BuildStep
     ReflectiveClassBuildItem registerForReflection() {
         return ReflectiveClassBuildItem.builder(

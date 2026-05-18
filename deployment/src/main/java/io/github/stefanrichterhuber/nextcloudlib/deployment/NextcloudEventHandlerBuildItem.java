@@ -18,6 +18,13 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
 
     private final boolean provideAuth;
 
+    /**
+     * @param declaringClassName fully-qualified name of the CDI bean class that declares the handler
+     * @param methodName         name of the {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent}-annotated method
+     * @param eventClassNames    fully-qualified Nextcloud PHP event class names the method listens for
+     * @param tokenNeeded        {@code true} when a temporary auth token must be fetched from Nextcloud
+     * @param provideAuth        {@code true} when a {@code NextcloudAuthProvider} should be placed in the request context
+     */
     public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, String[] eventClassNames,
             boolean tokenNeeded, boolean provideAuth) {
         this.declaringClassName = declaringClassName;
@@ -44,10 +51,18 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
         return eventClassNames;
     }
 
+    /**
+     * @return {@code true} when a temporary Nextcloud auth token must be requested for the
+     *         triggering user before dispatching the event
+     */
     public boolean isTokenNeeded() {
         return tokenNeeded;
     }
 
+    /**
+     * @return {@code true} when a {@code NextcloudAuthProvider} carrying the triggering
+     *         user's token should be placed in the request context before the handler is called
+     */
     public boolean isProvideAuth() {
         return provideAuth;
     }

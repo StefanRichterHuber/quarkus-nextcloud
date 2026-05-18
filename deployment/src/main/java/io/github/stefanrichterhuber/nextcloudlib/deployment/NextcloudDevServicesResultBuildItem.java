@@ -2,8 +2,10 @@ package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -20,7 +22,23 @@ import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
 import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.runtime.LaunchMode;
 
+/**
+ * Build-step processor that starts a Nextcloud Testcontainers instance as a
+ * Quarkus dev service. Produces a {@link DevServicesResultBuildItem} that
+ * injects {@code nextcloud.url}, {@code nextcloud.user}, and
+ * {@code nextcloud.password} into the running application.
+ *
+ * <p>
+ * The container is only started when no explicit {@code nextcloud.url} is
+ * already configured and dev services are enabled (i.e. not in production
+ * mode).
+ */
 public class NextcloudDevServicesResultBuildItem {
+
+    public static final String NEXTCLOUD_APP_WEBHOOK_LISTENERS = "webhook_listeners";
+    public static final String NEXTCLOUD_APP_APP_API = "app_api";
+
+    private static final String HOST_NAME_FOR_DOCKER_CONTAINER = "host.docker.internal";
     private static final String APP_API_DEFAULT_SECRET = "1234567890";
     private static final int SERVICE_PORT = 80;
     private static final String ADMIN_PASSWORD = RandomStringUtils.secure().nextAlphanumeric(12);
@@ -41,8 +59,30 @@ public class NextcloudDevServicesResultBuildItem {
     private final ScheduledExecutorService executorService = java.util.concurrent.Executors
             .newSingleThreadScheduledExecutor();
 
+    /**
+     * Starts the Nextcloud dev-service container and returns a
+     * {@link DevServicesResultBuildItem} that exposes connection properties to the
+     * application. Returns {@code null} (no-op) when a {@code nextcloud.url} is
+     * already present in the config.
+     *
+     * @param handlers         discovered webhook-event handler descriptors; drives
+     *                         whether the {@code webhook_listeners} app is
+     *                         installed
+     * @param serviceConfig    dev-service configuration
+     *                         ({@code nextcloud.dev-services.*})
+     * @param exAppBuildConfig ExApp configuration; enables {@code app_api} when
+     *                         active
+     * @return a build item with injected config properties, or {@code null} when
+     *         skipped
+     * @throws IOException                   if container exec communication fails
+     * @throws UnsupportedOperationException if the container runtime does not
+     *                                       support exec
+     * @throws InterruptedException          if the thread is interrupted while
+     *                                       waiting
+     */
     @BuildStep(onlyIfNot = IsProduction.class, onlyIf = DevServicesConfig.Enabled.class)
     public DevServicesResultBuildItem createContainer(
+            List<NextcloudEventHandlerBuildItem> handlers,
             NextcloudDevServicesConfig serviceConfig,
             NextcloudExappConfig exAppBuildConfig)
             throws IOException, UnsupportedOperationException, InterruptedException {
@@ -60,21 +100,27 @@ public class NextcloudDevServicesResultBuildItem {
         final String user = serviceConfig.user();
         final String password = serviceConfig.password().orElse(ADMIN_PASSWORD);
         final int logLevel = serviceConfig.logLevel();
-        final List<String> apps = serviceConfig.apps().orElse(List.of());
+        final Set<String> apps = new HashSet<>(serviceConfig.apps().orElse(List.of()));
         final Boolean appApiSupport = serviceConfig.enableExApp() || exAppBuildConfig.enabled();
         final Boolean webhookWorkerEnabled = serviceConfig.enableWebhookWorker();
         final NextcloudContainer container = new NextcloudContainer(image, user, password);
+
+        if (appApiSupport) {
+            apps.add(NEXTCLOUD_APP_APP_API);
+        }
+        // If event handlers are present, enable webehook listeners.
+        if (!handlers.isEmpty()) {
+            apps.add(NEXTCLOUD_APP_WEBHOOK_LISTENERS);
+        }
+
         container.withApps(apps);
         container.withLogLevel(logLevel);
 
-        if (appApiSupport && !apps.contains("app_api")) {
-            container.withApp("app_api");
-        }
         container.withReuse(true);
         // Necessary to reach external apps like this one
-        container.withExtraHost("host.docker.internal", "host-gateway");
+        container.withExtraHost(HOST_NAME_FOR_DOCKER_CONTAINER, "host-gateway");
         container.withLogConsumer(of -> {
-            log.info(of.getUtf8StringWithoutLineEnding());
+            log.debug(of.getUtf8StringWithoutLineEnding());
         });
         container.start();
 
@@ -87,7 +133,7 @@ public class NextcloudDevServicesResultBuildItem {
         configOverrides.put(NEXTCLOUD_URL_PROPERTY, newUrl);
         configOverrides.put(NEXTCLOUD_USER_PROPERTY, user);
         configOverrides.put(NEXTCLOUD_PASSWORD_PROPERTY, password);
-        if (apps.contains("webhook_listeners")) {
+        if (apps.contains(NEXTCLOUD_APP_WEBHOOK_LISTENERS)) {
             configOverrides = installWebhookSupport(container, configOverrides, webhookWorkerEnabled);
         }
         if (appApiSupport) {
@@ -95,9 +141,10 @@ public class NextcloudDevServicesResultBuildItem {
         }
 
         log.infof(
-                "Started nextcloud dev instance at <%s> with apps %s with admin user <%s> and password <%s>. AppAPI support %s.",
+                "Started nextcloud dev instance at '%s' with apps %s with admin user <%s> and password <%s>. AppAPI support %s. Background job WebhookCall is %s",
                 newUrl,
-                apps, user, password, appApiSupport ? "enabled" : "not enabled");
+                apps, user, password, appApiSupport ? "enabled" : "not enabled",
+                webhookWorkerEnabled ? "enabled" : "not enabled");
 
         return DevServicesResultBuildItem.discovered()
                 .feature(FEATURE_NAME)
@@ -107,11 +154,12 @@ public class NextcloudDevServicesResultBuildItem {
                 .build();
     }
 
-    private Map<String, String> installWebhookSupport(NextcloudContainer container, Map<String, String> configOverrides,
-            boolean webhookWorkerEnabled) {
-        final Map<String, String> result = new HashMap<>(); //
-        result.putAll(configOverrides);
-
+    /**
+     * Determines the web service port of the app
+     * 
+     * @return Port
+     */
+    private int determineAppPort() {
         LaunchMode launchMode = LaunchMode.current();
         final int appPort;
         if (launchMode == LaunchMode.TEST) {
@@ -121,6 +169,24 @@ public class NextcloudDevServicesResultBuildItem {
         } else {
             appPort = 8080;
         }
+        return appPort;
+    }
+
+    /**
+     * Creates the config-overwrites for Nextcloud even webhooks
+     * 
+     * @param container            Nextcloud container to execute occ commands
+     * @param configOverrides      Existing config to overwrite
+     * @param webhookWorkerEnabled if an additional job for calling background
+     *                             webhook worker should be started
+     * @return Configuration with additional values for Webehook Event Configuration
+     */
+    private Map<String, String> installWebhookSupport(NextcloudContainer container, Map<String, String> configOverrides,
+            boolean webhookWorkerEnabled) {
+        final Map<String, String> result = new HashMap<>(); //
+        result.putAll(configOverrides);
+
+        final int appPort = determineAppPort();
         final String webhookHost = "http://host.docker.internal:" + appPort;
         result.put(NEXTCLOUD_WEBHOOK_HOST_PROPERTY, webhookHost);
         // Necessary to ensure app could be reached from docker
@@ -142,6 +208,16 @@ public class NextcloudDevServicesResultBuildItem {
         return result;
     }
 
+    /**
+     * Creates the config-overwrites for AppAPI, registers the AppAPI daemon and
+     * this Quarkus App as ExApp
+     * 
+     * @param container       Nextcloud container to execute occ commands
+     * @param configOverrides Existing config to overwrite
+     * @return Configuration with additional values for ExApp Configuration
+     * @throws IOException
+     * @throws InterruptedException
+     */
     private Map<String, String> installAppApi(NextcloudContainer container,
             Map<String, String> configOverrides)
             throws IOException, InterruptedException {
@@ -155,16 +231,7 @@ public class NextcloudDevServicesResultBuildItem {
                 .getOptionalValue("nextcloud.app-api.secret", String.class)
                 .orElse(APP_API_DEFAULT_SECRET);
 
-        LaunchMode launchMode = LaunchMode.current();
-        final int appPort;
-        if (launchMode == LaunchMode.TEST) {
-            appPort = ConfigProvider.getConfig().getValue("quarkus.http.test-port", Integer.class);
-        } else if (launchMode == LaunchMode.DEVELOPMENT) {
-            appPort = ConfigProvider.getConfig().getValue("quarkus.http.port", Integer.class);
-        } else {
-            appPort = 8080;
-        }
-
+        final int appPort = determineAppPort();
         final String appPersistentStorage = "tmp/app-storage";
         final String appVersion = ConfigProvider.getConfig().getValue("quarkus.application.version",
                 String.class);
@@ -192,7 +259,7 @@ public class NextcloudDevServicesResultBuildItem {
         appApiConfigOverrides.put("app.id", appName);
         appApiConfigOverrides.put("app.display-name", appName);
         appApiConfigOverrides.put("app.version", appVersion);
-        appApiConfigOverrides.put("app.host", "0.0.0.0");
+        appApiConfigOverrides.put("app.host", HOST_NAME_FOR_DOCKER_CONTAINER);
         appApiConfigOverrides.put("app.port", Integer.toString(appPort));
         appApiConfigOverrides.put("app.protocol", "http");
         appApiConfigOverrides.put("app.persistent-storage", appPersistentStorage);
@@ -207,8 +274,8 @@ public class NextcloudDevServicesResultBuildItem {
         jsonInfoObj.put("version", appVersion);
         jsonInfoObj.put("secret", appSecret);
         jsonInfoObj.put("port", Integer.toString(appPort));
-        // jsonInfoObj.put("system_app", appIsSystemApp ? 1 : 0);
-        // jsonInfoObj.put("scopes", appScopes);
+        jsonInfoObj.put("system_app", appIsSystemApp ? 1 : 0);
+        jsonInfoObj.put("scopes", appScopes);
 
         final String jsonInfo = om.writeValueAsString(jsonInfoObj);
 
@@ -216,10 +283,10 @@ public class NextcloudDevServicesResultBuildItem {
         // /heartbeat /init and /enabled endpoints which are only available after the
         // full start of the dev service
         container.occ("app_api:daemon:register", daemonName, "Quarkus Dev Services Nextcloud",
-                "manual-install", "http", "host.docker.internal", nextcloudUrl)
+                "manual-install", "http", HOST_NAME_FOR_DOCKER_CONTAINER, nextcloudUrl)
                 .thenCompose(success -> {
                     if (success) {
-                        log.infof("Successfully registred the app_api daemon");
+                        log.infof("Successfully registered the app_api daemon");
                         return container.occ("app_api:app:register", appName, daemonName, "--json-info", jsonInfo);
                     } else {
                         log.errorf("Failed to register app_api daemon");
@@ -230,7 +297,7 @@ public class NextcloudDevServicesResultBuildItem {
                 })
                 .thenCompose(success -> {
                     if (success) {
-                        log.infof("Successfully registred external app '%s' in nextcloud", appName);
+                        log.infof("Successfully registered external app '%s' in nextcloud", appName);
                         return container.occ("app_api:app:enable", appName);
                     } else {
                         log.errorf("Failed to register external app '%s' in nextcloud", appName);

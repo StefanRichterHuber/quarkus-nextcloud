@@ -11,11 +11,13 @@ import org.jboss.jandex.Type;
 import org.jboss.logging.Logger;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventDispatcher;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.DefaultNextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookBuildConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRecorder;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrar;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrationService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookSecretHolder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
@@ -172,13 +174,6 @@ class NextcloudEventProcessor {
             return;
         }
 
-        additionalBeans.produce(AdditionalBeanBuildItem.builder()
-                .addBeanClass(NextcloudWebhookRegistrar.class)
-                .addBeanClass(NextcloudWebhookSecretHolder.class)
-                .addBeanClass(NextcloudEventDispatcher.class)
-                .setUnremovable()
-                .build());
-
         // Register each handler's declaring class as a CDI bean.
         // setDefaultScope promotes plain POJOs to @ApplicationScoped when no
         // explicit scope annotation is present on the class.
@@ -198,6 +193,77 @@ class NextcloudEventProcessor {
                     handler.getMethodName(),
                     handler.getEventClassNames(), handler.isTokenNeeded(), handler.isProvideAuth());
         }
+    }
+
+    /**
+     * Registers the shared event-infrastructure CDI beans
+     * ({@link DefaultNextcloudEventDispatcher}, {@link NextcloudWebhookRegistrationService},
+     * {@link NextcloudWebhookSecretHolder}) when at least one handler was discovered.
+     *
+     * @param handlers        discovered handler descriptors; beans are skipped when empty
+     * @param additionalBeans producer for CDI bean registrations
+     */
+    @BuildStep
+    void setupEventBeans(
+            List<NextcloudEventHandlerBuildItem> handlers,
+            BuildProducer<AdditionalBeanBuildItem> additionalBeans) {
+
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        additionalBeans.produce(AdditionalBeanBuildItem.builder()
+                .addBeanClass(NextcloudWebhookSecretHolder.class)
+                .addBeanClass(DefaultNextcloudEventDispatcher.class)
+                .addBeanClass(NextcloudWebhookRegistrationService.class)
+                .setUnremovable()
+                .build());
+    }
+
+    /**
+     * Registers {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar}
+     * as a CDI bean when the application is <em>not</em> running as an ExApp. This registrar
+     * registers webhooks against Nextcloud using admin credentials on startup.
+     *
+     * @param handlers        discovered handler descriptors; bean is skipped when empty
+     * @param additionalBeans producer for CDI bean registrations
+     */
+    @BuildStep(onlyIfNot = IsExApp.class)
+    void setupEventRegistrationBeans(
+            List<NextcloudEventHandlerBuildItem> handlers,
+            BuildProducer<AdditionalBeanBuildItem> additionalBeans) {
+
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        additionalBeans.produce(AdditionalBeanBuildItem.builder()
+                .addBeanClass(NextcloudWebhookStartupRegistrar.class)
+                .setUnremovable()
+                .build());
+    }
+
+    /**
+     * Registers {@link io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar}
+     * as a CDI bean when the application is running as an ExApp. This registrar registers
+     * webhooks via the ExApp-specific lifecycle hooks rather than admin credentials.
+     *
+     * @param handlers        discovered handler descriptors; bean is skipped when empty
+     * @param additionalBeans producer for CDI bean registrations
+     */
+    @BuildStep(onlyIf = IsExApp.class)
+    void setupEventExappRegistrationBeans(
+            List<NextcloudEventHandlerBuildItem> handlers,
+            BuildProducer<AdditionalBeanBuildItem> additionalBeans) {
+
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        additionalBeans.produce(AdditionalBeanBuildItem.builder()
+                .addBeanClass(NextcloudWebhookEnabledRegistrar.class)
+                .setUnremovable()
+                .build());
     }
 
     /**
@@ -354,7 +420,7 @@ class NextcloudEventProcessor {
             return;
         }
 
-        LOG.infof("Registering Nextcloud webhook Vert.x route at: %s", buildConfig.path());
+        LOG.infof("Registering Nextcloud event webhook Vert.x route at: %s", buildConfig.path());
 
         routes.produce(httpRoot.routeBuilder()
                 .route(buildConfig.path())

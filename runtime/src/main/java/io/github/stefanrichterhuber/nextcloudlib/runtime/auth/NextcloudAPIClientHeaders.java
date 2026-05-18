@@ -34,10 +34,10 @@ public class NextcloudAPIClientHeaders implements ClientHeadersFactory {
 
         final MultivaluedMap<String, String> result = new MultivaluedHashMap<>();
         if (exappConfig.enabled()) {
-            result.putSingle("EX-APP-ID", appConfig.id().get());
-            result.putSingle("EX-APP-VERSION", appConfig.version().get());
+            result.putSingle("EX-APP-ID", appConfig.id());
+            result.putSingle("EX-APP-VERSION", appConfig.version());
             result.putSingle("OCS-APIRequest", "true");
-            result.putSingle("User-Agent", appConfig.id().get());
+            result.putSingle("User-Agent", appConfig.id());
 
             final String user = provider.getUser();
             final String secret = appConfig.secret().get();

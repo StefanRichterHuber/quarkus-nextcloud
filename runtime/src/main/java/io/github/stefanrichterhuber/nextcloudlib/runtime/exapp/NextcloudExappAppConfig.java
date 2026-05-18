@@ -9,69 +9,83 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
+/**
+ * Runtime configuration for the ExApp itself ({@code app.*} properties).
+ * Most values are injected as environment variables by the Nextcloud AppAPI
+ * daemon when it starts the ExApp container.
+ */
 @ConfigMapping(prefix = "app")
 @ConfigRoot(phase = ConfigPhase.RUN_TIME)
 public interface NextcloudExappAppConfig {
     /**
-     * Secret set by the ex app host to authenticate the communication between host
-     * and this app
-     * 
-     * @return
+     * Shared secret set by the AppAPI host to authenticate communication between
+     * Nextcloud and this ExApp.
+     *
+     * @return the shared secret, or empty if not yet set
      */
     Optional<String> secret();
 
     /**
-     * ID of this app
-     * 
-     * @return
+     * Unique application identifier registered in Nextcloud.
+     *
+     * @return app ID, defaults to {@code quarkus-exapp}
      */
-    Optional<String> id();
+    @WithDefault("quarkus-exapp")
+    String id();
 
     /**
-     * Human display name of this app
-     * 
-     * @return
+     * Human-readable display name shown in the Nextcloud UI.
+     *
+     * @return display name, defaults to {@code Quarkus ExApp}
      */
-    Optional<String> displayName();
+    @WithDefault("Quarkus ExApp")
+    String displayName();
 
     /**
-     * Version of this app
-     * 
-     * @return
+     * Version of this ExApp as reported to Nextcloud.
+     *
+     * @return version string, defaults to {@code 1.0.0}
      */
-    Optional<String> version();
+    @WithDefault("1.0.0")
+    String version();
 
     /**
-     * Host protocol (either http or https)
-     * 
-     * @return
+     * Network protocol used to reach this ExApp from Nextcloud.
+     *
+     * @return {@code http} or {@code https}, defaults to {@code http}
      */
-    Optional<String> protocol();
+    @WithDefault("http")
+    String protocol();
 
     /**
-     * EX App host
-     * 
-     * @return
+     * Hostname or IP address at which Nextcloud can reach this ExApp.
+     *
+     * @return host, defaults to {@code localhost}
      */
-    Optional<String> host();
+    @WithDefault("localhost")
+    String host();
 
     /**
-     * EX App host port
-     * 
-     * @return
+     * TCP port on which this ExApp listens.
+     *
+     * @return port number, defaults to {@code 8080}
      */
-    Optional<Integer> port();
+    @WithDefault("8080")
+    Integer port();
 
     /**
-     * Path to the persistent storage of this app
-     * 
-     * @return
+     * Filesystem path used for persistent data storage by this ExApp.
+     *
+     * @return path to the persistent storage directory
      */
-    Optional<Path> persistentStorage();
+    @WithDefault("/tmp/${app.id}")
+    Path persistentStorage();
 
     /**
-     * Scopes of the app
+     * AppAPI permission scopes granted to this ExApp.
+     *
+     * @return list of scope identifiers, defaults to all standard scopes
      */
     @WithDefault("SYSTEM,FILES,FILES_SHARING,USER_INFO,USER_STATUS,NOTIFICATIONS,WEATHER_STATUS,TALK,EVENTS_LISTENER")
-    Optional<List<String>> scopes();
+    List<String> scopes();
 }

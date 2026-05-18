@@ -8,61 +8,70 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
+/**
+ * Build-time configuration for the Nextcloud dev service
+ * ({@code nextcloud.dev-services.*} properties).
+ */
 @ConfigMapping(prefix = "nextcloud.dev-services")
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
 public interface NextcloudDevServicesConfig {
 
     /**
-     * Nextcloud image to use
-     * 
-     * @return
+     * Docker image to use for the Nextcloud container.
+     *
+     * @return image name, defaults to {@code nextcloud:latest}
      */
     @WithDefault("nextcloud:latest")
     String image();
 
     /**
-     * Default nextcloud user to set up
-     * 
-     * @return
+     * Username of the Nextcloud admin account created during first-time setup.
+     *
+     * @return admin username, defaults to {@code admin}
      */
     @WithDefault("admin")
     String user();
 
     /**
-     * Password of the default nextcloud user
-     * 
-     * @return
+     * Password for the Nextcloud admin account. When absent, a random
+     * alphanumeric password is generated at startup.
+     *
+     * @return admin password, or empty to auto-generate
      */
     Optional<String> password();
 
     /**
-     * Log level: 0 Debug, 1 Info, 2 Warning, 3 Error, 4 Fatal
-     * 
-     * @return
+     * Nextcloud log verbosity level.
+     * {@code 0} = Debug, {@code 1} = Info, {@code 2} = Warning,
+     * {@code 3} = Error, {@code 4} = Fatal.
+     *
+     * @return log level, defaults to {@code 1} (Info)
      */
     @WithDefault("1")
     int logLevel();
 
     /**
-     * List of nextcloud apps to install
-     * 
-     * @return
+     * Additional Nextcloud apps to install and enable on startup.
+     *
+     * @return list of app identifiers, or empty if none
      */
     Optional<List<String>> apps();
 
     /**
-     * Enable ex app suppor in the dev service
-     * 
-     * @return
+     * Whether to install and configure the {@code app_api} Nextcloud app so that
+     * ExApp (external application) support is available in the dev service.
+     *
+     * @return {@code true} to enable ExApp support, defaults to {@code false}
      */
     @WithDefault("false")
     boolean enableExApp();
 
     /**
-     * Enable the webhook worker job to ensure events are passed down asap
-     * 
-     * @return
+     * Whether to run the {@code WebhookCall} background-job worker periodically so
+     * that webhook events are dispatched without relying on a cron trigger.
+     *
+     * @return {@code true} to run the worker, defaults to {@code true}
      */
-    @WithDefault("false")
+    @WithDefault("true")
     boolean enableWebhookWorker();
 }

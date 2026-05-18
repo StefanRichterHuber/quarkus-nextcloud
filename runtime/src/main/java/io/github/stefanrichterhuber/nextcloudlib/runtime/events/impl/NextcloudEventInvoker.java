@@ -13,30 +13,35 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
  */
 public interface NextcloudEventInvoker {
     /**
-     * Invokes method annotated with OnNextcloudEvent
-     * 
-     * @param event
+     * Invokes the {@link OnNextcloudEvent}-annotated handler method with the
+     * given event.
+     *
+     * @param event the Nextcloud event to dispatch to the handler
      */
     void invoke(NextcloudEvent<?> event);
 
     /**
-     * List of nextcloud events bound to the annotated methods
-     * 
-     * @return
+     * Returns the fully-qualified Nextcloud PHP event class names this invoker
+     * is subscribed to.
+     *
+     * @return array of Nextcloud event class names, never {@code null} or empty
      */
     String[] events();
 
     /**
-     * Request the auth token for the triggering user?
-     * 
-     * @return
+     * Whether a temporary auth token must be requested from Nextcloud for the
+     * triggering user before the handler is invoked.
+     *
+     * @return {@code true} when a temporary auth token is required
      */
     boolean requestAuthToken();
 
     /**
-     * Whether to provide an Authprovider instance with the auth token
-     * 
-     * @return
+     * Whether a {@link io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider}
+     * instance carrying the triggering user's token should be placed in the
+     * request context before the handler is called.
+     *
+     * @return {@code true} when an {@code NextcloudAuthProvider} should be provided
      */
     boolean provideAuthProvider();
 }

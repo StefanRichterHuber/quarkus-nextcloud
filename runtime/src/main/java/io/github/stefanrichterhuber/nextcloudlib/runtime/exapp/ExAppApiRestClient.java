@@ -6,6 +6,7 @@ import java.util.Set;
 
 import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIClientHeaders;
@@ -24,52 +25,126 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+/**
+ * JAX-RS REST client for the Nextcloud AppAPI-specific endpoints.
+ * Provides access to ExApp config, notifications, UI registration, logging,
+ * and lifecycle management.
+ *
+ * @see <a href="https://cloud-py-api.github.io/app_api/tech_details/api/">AppAPI REST API docs</a>
+ */
 @Path("/")
 @RegisterClientHeaders(NextcloudAPIClientHeaders.class)
 public interface ExAppApiRestClient {
+    /** Base path prefix for AppAPI OCS endpoints. */
     public static final String APP_API_URL_PREFIX = "/ocs/v1.php/apps/app_api";
+    /** Base path prefix for AppAPI v1 API endpoints. */
     public static final String API_URL_PREFIX = APP_API_URL_PREFIX + "/api/v1";
 
+    /**
+     * Reports this ExApp's initialization progress to the AppAPI.
+     *
+     * @param progress percentage complete (0–100), or an error payload
+     */
     public static record AppInitProgress(int progress, String error) {
+        /**
+         * Creates a successful progress report.
+         *
+         * @param progress percentage complete, must be in {@code [0, 100]}
+         * @return a progress report with no error
+         */
         public static AppInitProgress ok(int progress) {
             return new AppInitProgress(progress, null);
         }
 
+        /**
+         * Creates an error progress report.
+         *
+         * @param progress percentage reached before the error occurred
+         * @param error    human-readable error description
+         * @return a progress report carrying the error message
+         */
         public static AppInitProgress error(int progress, String error) {
             return new AppInitProgress(progress, error);
         }
     }
 
-    public static record ExAppConfigValue(String configKey, String configValue, String sensitive) {
+    /**
+     * Represents a single ExApp configuration or preference key-value entry.
+     */
+    public static record ExAppConfigValue(
+            @JsonProperty("configkey") String configKey,
+            @JsonProperty("configvalue") String configValue,
+            Integer id,
+            @JsonProperty("appid") String appId,
+            Integer sensitive) {
+
+        /**
+         * Creates a non-sensitive config entry.
+         *
+         * @param configKey   the configuration key
+         * @param configValue the configuration value
+         * @return a new config entry with {@code sensitive = 0}
+         */
         public static ExAppConfigValue create(String configKey, String configValue) {
-            return create(configKey, configValue, false);
+            return new ExAppConfigValue(configKey, configValue, null, null, 0);
         }
 
-        public static ExAppConfigValue create(String configKey, String configValue, boolean sensitive) {
-            return new ExAppConfigValue(configKey, configValue, sensitive ? "true" : null);
+        /**
+         * Creates a sensitive config entry that Nextcloud will store encrypted.
+         *
+         * @param configKey   the configuration key
+         * @param configValue the configuration value
+         * @return a new config entry with {@code sensitive = 1}
+         */
+        public static ExAppConfigValue createSensitiveValue(String configKey, String configValue) {
+            return new ExAppConfigValue(configKey, configValue, null, null, 1);
         }
     }
 
+    /**
+     * Request body for bulk config-value retrieval by key names.
+     */
     public static record AppConfigValueRequest(List<String> configKeys) {
+        /**
+         * Creates a request for the given config keys.
+         *
+         * @param configKeys one or more config key names to retrieve
+         * @return a new request wrapping the given keys
+         */
         public static AppConfigValueRequest create(String... configKeys) {
             return new AppConfigValueRequest(List.of(configKeys));
         }
 
+        /**
+         * Creates a request for the given config keys.
+         *
+         * @param configKeys list of config key names to retrieve
+         * @return a new request wrapping the given keys
+         */
         public static AppConfigValueRequest create(List<String> configKeys) {
             return new AppConfigValueRequest(configKeys);
         }
     }
 
+    /**
+     * Summary information about an installed Nextcloud ExApp.
+     */
     public static record AppList(String id, String name, String version, boolean enabled,
             String last_check_time,
             boolean system) {
     }
 
+    /**
+     * Request body for registering an entry in the Nextcloud Files actions menu.
+     */
     public static record RegisterFileActionMenuRequest(String name, String displayName,
             String actionHandler,
             String mime, String icon, int permissions, int order) {
     }
 
+    /**
+     * Request body for sending a log entry to the Nextcloud global log.
+     */
     public static record LogRequest(Level level, @Nonnull String message) {
         public static enum Level {
 
@@ -87,70 +162,175 @@ public interface ExAppApiRestClient {
             }
         }
 
+        /**
+         * Creates a log request for the given level and message.
+         *
+         * @param level   severity level
+         * @param message log message text
+         * @return a new log request
+         */
         public static LogRequest create(Level level, String message) {
             return new LogRequest(level, message);
         }
     }
 
+    /**
+     * Request body for registering a top-menu entry in the Nextcloud UI.
+     */
     public static record RegisterTopMenuEntryRequest(@Nonnull String name, @Nonnull String displayName,
             String icon,
             int adminRequired) {
 
     }
 
+    /**
+     * Request body for unregistering a previously registered UI element by name.
+     */
     public static record UnregisterRequest(@Nonnull String name) {
     }
 
+    /**
+     * Request body for setting or removing a Nextcloud initial state value.
+     */
     public static record InitialStateRequest(@Nonnull String type, @Nonnull String name,
             @Nonnull String key,
             List<String> value) {
     }
 
+    /**
+     * Request body for registering or removing a JavaScript or CSS resource.
+     */
     public static record ScriptOrStyleRequest(@Nonnull String type, @Nonnull String name,
             @Nonnull String path,
             String afterAppId) {
     }
 
+    /**
+     * Request body for removing a declarative settings form by its form ID.
+     */
     public static record RemoveSettingsMenu(String formId) {
     }
 
-    public static enum EventSubTypes {
-        NodeCreatedEvent, NodeTouchedEvent, NodeWrittenEvent, NodeDeletedEvent, NodeRenamedEvent,
-        NodeCopiedEvent
-    }
-
+    /**
+     * Request body for removing a previously registered node event listener.
+     */
     public static record RemoveEventListener(
             /** event type: 'node_event' */
             String eventType) {
 
+        /**
+         * Creates a request to remove the {@code node_event} listener.
+         *
+         * @return a remove-listener request for the node event type
+         */
         public static RemoveEventListener create() {
             return new RemoveEventListener("node_event");
         }
     }
 
+    /**
+     * Request body for registering a node event listener with the AppAPI.
+     */
     public static record RegisterEventListener(
             /** event type: 'node_event' */
             String eventType,
             /** Route to the handler */
             String actionHandler,
             /** Optional list of sub types */
-            Set<EventSubTypes> eventSubtypes) {
+            Set<String> eventSubtypes) {
 
+        /**
+         * Creates a listener registration for all node event sub-types.
+         *
+         * @param actionHandler route path of the event handler endpoint
+         * @return a new listener registration with an empty sub-type filter
+         */
         public static RegisterEventListener create(String actionHandler) {
             return create(actionHandler, Collections.emptySet());
         }
 
+        /**
+         * Creates a listener registration filtered to the given sub-types.
+         *
+         * @param actionHandler route path of the event handler endpoint
+         * @param eventSubtypes Nextcloud node event sub-type identifiers to subscribe to
+         * @return a new listener registration
+         */
         public static RegisterEventListener create(String actionHandler,
-                EventSubTypes... eventSubtypes) {
+                String... eventSubtypes) {
             return create(actionHandler, Set.of(eventSubtypes));
         }
 
+        /**
+         * Creates a listener registration filtered to the given sub-types.
+         *
+         * @param actionHandler route path of the event handler endpoint
+         * @param eventSubtypes set of Nextcloud node event sub-type identifiers
+         * @return a new listener registration
+         */
         public static RegisterEventListener create(String actionHandler,
-                Set<EventSubTypes> eventSubtypes) {
+                Set<String> eventSubtypes) {
             return new RegisterEventListener("node_event", actionHandler, eventSubtypes);
         }
     }
 
+    /**
+     * @param name           appid:unique:command:name
+     * @param description    Description of the command
+     * @param hidden         "1/0"
+     * @param arguments      Arguments of the command
+     * @param options        Options aof the command
+     * @param usages         "occ appid:unique:command:name argument_name
+     *                       --option_name",
+     * @param executeHandler Route for the handler
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/occ_command.html">OCC
+     *      Command</a>
+     */
+    public static record RegisterOCCComandRequest(
+            String name,
+            String description,
+            String hidden,
+            List<RegisterOCCComandRequest.Argument> arguments,
+            List<RegisterOCCComandRequest.Option> options,
+            List<String> usages,
+            @JsonProperty("execute_handler") String executeHandler) {
+
+        /**
+         * @param name         argument_name
+         * @param mode         "required/optional/array"
+         * @param description  Description of the argument
+         * @param defaultValue Default value
+         */
+        public static record Argument(
+                String name,
+                String mode,
+                String description,
+                @JsonProperty("default") String defaultValue) {
+        }
+
+        /**
+         * @param name         option_name
+         * @param shortcut     "s"
+         * @param mode         "required/optional/none/array/negatable"
+         * @param description  Description of the option
+         * @param defaultValue default value
+         */
+        public static record Option(
+                String name,
+                String shortcut,
+                String mode,
+                String description,
+                @JsonProperty("default") String defaultValue) {
+        }
+
+    }
+
+    /**
+     * Returns the list of Nextcloud user IDs visible to this ExApp.
+     *
+     * @return an OCS response wrapping the list of user IDs
+     */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -158,10 +338,11 @@ public interface ExAppApiRestClient {
     OCSMessage<List<String>> getUserList();
 
     /**
-     * Returns the initialization status of this app to the AppApi server
-     * 
-     * @param appId    ID of this app
-     * @param progress status (from 0 to 100)
+     * Reports the initialization progress of this ExApp to the AppAPI server.
+     *
+     * @param progress progress payload with a percentage value (0–100) and an
+     *                 optional error message
+     * @return an OCS response confirming receipt of the status
      */
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
@@ -170,67 +351,67 @@ public interface ExAppApiRestClient {
     OCSMessage reportAppInitProgress(AppInitProgress progress);
 
     /**
-     * Set ExApp config value
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/appconfig.html#set-app-config-value
-     * @param target Either 'config' for global config or 'preference' for user
-     *               specific config
-     * @param value
-     * @return
+     * Sets a single ExApp config or preference value.
+     *
+     * @param target {@code config} for global config, {@code preference} for
+     *               per-user preferences
+     * @param value  the key-value pair to store
+     * @return an OCS response wrapping the stored config entry
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Path(API_URL_PREFIX + "/ex-app/{target}")
-    Response setExAppConfigValue(@PathParam("target") String target, ExAppConfigValue value);
+    OCSMessage<ExAppConfigValue> setExAppConfigValue(@PathParam("target") String target, ExAppConfigValue value);
 
     /**
-     * Fetches ExApp config values
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/appconfig.html#set-app-config-value
-     * @param target  Either 'config' for global config or 'preference' for user
-     *                specific config
-     * @param request
-     * @return
+     * Retrieves multiple ExApp config or preference values by key.
+     *
+     * @param target  {@code config} for global config, {@code preference} for
+     *                per-user preferences
+     * @param request list of config key names to retrieve
+     * @return an OCS response wrapping the matching config entries
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path(API_URL_PREFIX + "/ex-app/{target}/get-values")
-    OCSMessage getAppConfigValues(@PathParam("target") String target, AppConfigValueRequest request);
+    OCSMessage<List<ExAppConfigValue>> getAppConfigValues(@PathParam("target") String target,
+            AppConfigValueRequest request);
 
     /**
-     * Deletes ExApp config values
-     * src/main/java/com/github/StefanRichterHuber/nextcloudaitagging/nextcloud/exapp/RequestAuthFilter.java
-     * src/main/java/com/github/StefanRichterHuber/nextcloudaitagging/nextcloud/exapp/AuthRequired.java
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/appconfig.html#set-app-config-value
-     * @param target Either 'config' for global config or 'preference' for user
-     *               specific config
-     * @param value
+     * Deletes ExApp config or preference values.
+     *
+     * @param target {@code config} for global config, {@code preference} for
+     *               per-user preferences
+     * @param value  the keys to delete
+     * @return an OCS response with the number of deleted entries
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path(API_URL_PREFIX + "/ex-app/{target}")
-    void deleteExAppConfigValue(@PathParam("target") String target, AppConfigValueRequest value);
+    OCSMessage<Integer> deleteExAppConfigValue(@PathParam("target") String target, AppConfigValueRequest value);
 
     /**
-     * Get list of installed ExApps
-     * 
-     * @param list either 'enabled' or 'all' to show only enabled or all apps
-     * @return
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/exapp.html
+     * Returns a list of installed ExApps.
+     *
+     * @param list {@code enabled} to list only enabled apps, {@code all} for all apps
+     * @return list of installed ExApp summaries
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/exapp.html">ExApp API</a>
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Path(API_URL_PREFIX + "/ex-app/{list}")
     List<AppList> getAppList(@PathParam("list") String list);
 
-    /*
-     * 
-     * Returns a list of user IDs
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/utils.html
+    /**
+     * Returns a list of Nextcloud user IDs accessible to this ExApp.
+     *
+     * @return an OCS response wrapping the user list
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/utils.html">Utils API</a>
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -238,10 +419,11 @@ public interface ExAppApiRestClient {
     OCSMessage getUsers();
 
     /**
-     * Registers a new entry in the File Actions menu
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/fileactionsmenu.html#
-     * @param request
+     * Registers a new entry in the Nextcloud Files actions menu.
+     *
+     * @param request the menu entry definition
+     * @return the HTTP response from the AppAPI
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files Actions Menu API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -250,10 +432,11 @@ public interface ExAppApiRestClient {
     Response registerFileActionsMenu(RegisterFileActionMenuRequest request);
 
     /**
-     * Unregisters an entry in the File Actions menu
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/fileactionsmenu.html#
-     * @param request
+     * Removes a previously registered entry from the Nextcloud Files actions menu.
+     *
+     * @param request identifies the menu entry to remove by name
+     * @return the HTTP response from the AppAPI
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files Actions Menu API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -262,9 +445,11 @@ public interface ExAppApiRestClient {
     Response unregisterFileActionsMenu(UnregisterRequest request);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Registers a top-menu entry in the Nextcloud navigation bar.
+     *
+     * @param request the top-menu entry definition
+     * @return the HTTP response from the AppAPI
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top Menu API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -273,9 +458,11 @@ public interface ExAppApiRestClient {
     Response registerTopMenuEntry(RegisterTopMenuEntryRequest request);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Removes a previously registered top-menu entry.
+     *
+     * @param request identifies the menu entry to remove by name
+     * @return the HTTP response from the AppAPI
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top Menu API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -284,11 +471,11 @@ public interface ExAppApiRestClient {
     Response unregisterTopMenuEntry(UnregisterRequest request);
 
     /**
-     * Sends a notification to the user
-     * 
-     * @param request
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/notifications.html
-     * @see https://github.com/nextcloud/server/issues/1706
+     * Sends a push notification to a Nextcloud user.
+     *
+     * @param request the notification payload
+     * @return an OCS response confirming delivery
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/notifications.html">Notifications API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -297,10 +484,11 @@ public interface ExAppApiRestClient {
     OCSMessage sendNotification(NotificationRequest request);
 
     /**
-     * Sends a log entry to the global log file
-     * 
-     * @param log
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/logging.html
+     * Sends a log entry to the Nextcloud global log.
+     *
+     * @param log the log entry including level and message
+     * @return an OCS response confirming the log entry was written
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/logging.html">Logging API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -309,9 +497,11 @@ public interface ExAppApiRestClient {
     OCSMessage sendLogEntry(LogRequest log);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Sets an initial state value that Nextcloud injects into a page's
+     * JavaScript context.
+     *
+     * @param req the initial state definition (type, name, key, and value)
+     * @return an OCS response confirming the operation
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -320,9 +510,10 @@ public interface ExAppApiRestClient {
     OCSMessage setInitialState(InitialStateRequest req);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Removes a previously set initial state value.
+     *
+     * @param req identifies the initial state entry to remove
+     * @return an OCS response confirming the operation
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -331,9 +522,10 @@ public interface ExAppApiRestClient {
     OCSMessage removeInitialState(InitialStateRequest req);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Registers a JavaScript resource to be loaded by Nextcloud.
+     *
+     * @param req the script registration request (type, name, path, afterAppId)
+     * @return an OCS response confirming the operation
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -342,9 +534,10 @@ public interface ExAppApiRestClient {
     OCSMessage addScript(ScriptOrStyleRequest req);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Registers a CSS stylesheet to be loaded by Nextcloud.
+     *
+     * @param req the style registration request (type, name, path, afterAppId)
+     * @return an OCS response confirming the operation
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -353,9 +546,10 @@ public interface ExAppApiRestClient {
     OCSMessage addStyle(ScriptOrStyleRequest req);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Removes a previously registered JavaScript resource.
+     *
+     * @param req identifies the script to remove
+     * @return an OCS response confirming the operation
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -364,9 +558,10 @@ public interface ExAppApiRestClient {
     OCSMessage removeScript(ScriptOrStyleRequest req);
 
     /**
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/topmenu.html
-     * @param req
-     * @return
+     * Removes a previously registered CSS stylesheet.
+     *
+     * @param req identifies the stylesheet to remove
+     * @return an OCS response confirming the operation
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -375,11 +570,12 @@ public interface ExAppApiRestClient {
     OCSMessage removeStyle(ScriptOrStyleRequest req);
 
     /**
-     * Register a settings menu
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/settings.html
-     * @param settings
-     * @return
+     * Registers a declarative settings form in Nextcloud's admin or personal
+     * settings UI.
+     *
+     * @param settings the settings form definition
+     * @return an OCS response confirming the registration
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -388,11 +584,11 @@ public interface ExAppApiRestClient {
     OCSMessage registerSettingsMenu(DeclarativeSettings settings);
 
     /**
-     * Remove a settings menu
-     * 
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/settings.html
-     * @param req
-     * @return
+     * Removes a previously registered declarative settings form.
+     *
+     * @param req identifies the settings form to remove by its form ID
+     * @return an OCS response confirming the removal
+     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -400,29 +596,4 @@ public interface ExAppApiRestClient {
     @Path(API_URL_PREFIX + "/ui/settings")
     OCSMessage removeSettingsMenu(RemoveSettingsMenu req);
 
-    /**
-     * Registers an event listener
-     * 
-     * @param req
-     * @return
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/events_listener.html
-     */
-    @POST
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Path(API_URL_PREFIX + "/events_listener")
-    OCSMessage registerEventListener(RegisterEventListener req);
-
-    /**
-     * Removes event listener an event listener
-     * 
-     * @param req
-     * @return
-     * @see https://cloud-py-api.github.io/app_api/tech_details/api/events_listener.html
-     */
-    @DELETE
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Path(API_URL_PREFIX + "/events_listener")
-    OCSMessage deleteEventListener(RemoveEventListener req);
 }

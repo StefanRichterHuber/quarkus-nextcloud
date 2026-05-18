@@ -18,11 +18,15 @@ import jakarta.annotation.Nullable;
  * interface), the user that triggered the event and the time the event was
  * triggered.
  *
- * @param <T>   the type of the event data, must be an implementation of
- *              {@link Event}
- * @param event the event data specific to the event type
- * @param user  the user that triggered the event
- * @param time  the Unix timestamp (seconds) at which the event was triggered
+ * @param <T>            the type of the event data, must be an implementation
+ *                       of
+ *                       {@link Event}
+ * @param event          the event data specific to the event type
+ * @param user           the user that triggered the event
+ * @param time           the Unix timestamp (seconds) at which the event was
+ *                       triggered
+ * @param authentication Authentication data for the user, only populated if
+ *                       requested
  */
 @RegisterForReflection
 public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event>(

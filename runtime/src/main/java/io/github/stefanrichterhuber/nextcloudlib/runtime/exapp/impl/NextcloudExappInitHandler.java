@@ -19,6 +19,16 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.ws.rs.core.MediaType;
 
+/**
+ * Vert.x handler for the {@code /init} ExApp lifecycle endpoint. Called by
+ * Nextcloud AppAPI after enabling the ExApp to allow it to perform
+ * long-running initialization before going live.
+ *
+ * <p>If no {@link NextcloudExAppInitProgress} bean is present, responds with
+ * HTTP 404 — AppAPI interprets this as "no initialization needed". When a
+ * progress bean is found, its reactive stream is subscribed and each emitted
+ * percentage value is forwarded to the AppAPI's {@code ex-app/status} endpoint.
+ */
 public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingContext> {
     private static final Logger LOG = Logger.getLogger(NextcloudExappInitHandler.class);
 
@@ -37,6 +47,15 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
         return client;
     }
 
+    /**
+     * Handles the AppAPI {@code /init} request. Returns HTTP 404 immediately when
+     * no {@link NextcloudExAppInitProgress} bean is resolvable. Otherwise
+     * subscribes to the progress stream and forwards each value to the AppAPI's
+     * status endpoint asynchronously, then responds with HTTP 200 and an empty
+     * JSON body.
+     *
+     * @param event the Vert.x routing context for the current request
+     */
     @Override
     public void handle(RoutingContext event) {
         // If the application does not need to carry out long initialization, it has an
