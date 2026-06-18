@@ -1,5 +1,5 @@
-name: Nextcloudlib
-description: Library for Nextcloud access
+name: nextcloudlib
+description: "Library to access Nextcloud and build ExApps for Nextcloud"
 metadata:
 #  keywords:
 #    - nextcloud

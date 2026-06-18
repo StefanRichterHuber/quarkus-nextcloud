@@ -116,11 +116,8 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
                                 });
 
                         if (event.authentication() != null && event.authentication().trigger() != null) {
-                            final String user = event.authentication().trigger().userId();
-                            final String token = event.authentication().trigger().token();
-                            final String server = event.authentication().trigger().baseUrl();
-                            final NextcloudUserCredentials credentials = new NextcloudUserCredentials(user, token,
-                                    server);
+                            final NextcloudUserCredentials credentials = event.authentication().trigger()
+                                    .toUserCredentials();
                             dispatcher.dispatch(event, credentials);
                         } else {
                             // No authentication given, use NextcloudAuthProvider

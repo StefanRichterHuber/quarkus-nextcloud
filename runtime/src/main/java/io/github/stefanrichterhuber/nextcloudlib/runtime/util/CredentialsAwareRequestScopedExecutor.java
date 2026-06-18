@@ -9,7 +9,7 @@ import io.quarkus.arc.Arc;
 import io.quarkus.arc.ManagedContext;
 
 /**
- * Creates a new exeutor wrapping an existing one but starting
+ * Creates a new executor wrapping an existing one but starting
  * a request context in the new thread and pass the given credentials into the
  * {@link NextcloudAuthProvider} of this new request context
  * 
@@ -28,14 +28,28 @@ public final class CredentialsAwareRequestScopedExecutor implements Executor {
     public void execute(Runnable command) {
         delegate.execute(() -> {
             final ManagedContext ctx = Arc.container().requestContext();
-            ctx.activate();
-            final NextcloudAuthProvider authProvider = Arc.container().instance(NextcloudAuthProvider.class)
-                    .get();
-            try {
-                authProvider.setCredentials(credentials);
-                command.run();
+            final boolean contextWasActive = ctx.isActive();
+
+            if (!contextWasActive) {
+                ctx.activate();
+            }
+
+            try (var handle = Arc.container().instance(NextcloudAuthProvider.class)) {
+                final NextcloudAuthProvider authProvider = handle.get();
+                final NextcloudUserCredentials previous = contextWasActive ? authProvider.getCredentials() : null;
+                try {
+                    authProvider.setCredentials(credentials);
+                    command.run();
+                } finally {
+                    if (contextWasActive) {
+                        authProvider.setCredentials(previous);
+                    }
+                }
             } finally {
-                ctx.terminate();
+                if (!contextWasActive) {
+                    ctx.deactivate();
+                    ctx.terminate();
+                }
             }
         });
     }

@@ -248,6 +248,7 @@ The extension registers the mandatory ExApp lifecycle endpoints:
 Observe `ExAppEnabledEvent` to register app features (e.g. menu entries)
 with Nextcloud after the app is enabled.
 When Webhook events are enabled `${app.protocol}://{app.host}:${app.port}` is used as webhook host, so no further configuration is necessary, just annotate methods with `@OnNextcloudEvent`.
+A custom default implementation of `io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider` is provided to provide the configured secret `app.secret` as password at runtime.
 
 #### Dev Services
 

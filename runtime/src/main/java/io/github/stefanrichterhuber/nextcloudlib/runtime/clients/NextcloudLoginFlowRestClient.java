@@ -2,6 +2,7 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.clients;
 
 import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.HeaderParam;
@@ -22,6 +23,9 @@ public interface NextcloudLoginFlowRestClient {
     }
 
     public record NextcloudAppCredentials(String server, String loginName, String appPassword) {
+        public NextcloudUserCredentials toUserCredentials() {
+            return new NextcloudUserCredentials(loginName, appPassword, server);
+        }
     }
 
     /**

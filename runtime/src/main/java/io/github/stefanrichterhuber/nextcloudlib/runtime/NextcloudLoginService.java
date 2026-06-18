@@ -140,16 +140,14 @@ public class NextcloudLoginService {
             final Response response = loginFlowClient.pollLoginFlowV2(token);
             final NextcloudAppCredentials cr = response.readEntity(NextcloudAppCredentials.class);
 
-            NextcloudUserCredentials session = new NextcloudUserCredentials(cr.loginName(), cr.appPassword(),
-                    cr.server());
-
+            final NextcloudUserCredentials session = cr.toUserCredentials();
             result.complete(session);
 
         } catch (ClientWebApplicationException e) {
             // Failed as expected (fails with 404 as long the user has not finished the
             // login process)
-            if (e.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode() && remainingTime.getSeconds() > 0) {
-                Duration newRemainingTime = remainingTime.minus(tokenPollInterval);
+            if (remainingTime.getSeconds() > 0) {
+                final Duration newRemainingTime = remainingTime.minus(tokenPollInterval);
 
                 executorService.schedule(
                         () -> pollLoginToken(loginFlowClient, token, pollurl,
