@@ -32,11 +32,14 @@ import jakarta.ws.rs.core.MediaType;
  * Service responsible for registering and deregistering Nextcloud webhook
  * listeners against the Nextcloud webhook API.
  *
- * <p>On {@link #registerWebhooks()} it queries the current list of registered
+ * <p>
+ * On {@link #registerWebhooks()} it queries the current list of registered
  * webhooks, skips entries that already point to this application's callback URL
- * (unless {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}),
+ * (unless {@link NextcloudWebhookBuildConfig#alwaysRegister()} is
+ * {@code true}),
  * and registers any missing ones. The IDs of newly registered webhooks are
- * kept in memory so they can be cleaned up by {@link #deleteRegisteredWebhooks()}.
+ * kept in memory so they can be cleaned up by
+ * {@link #deleteRegisteredWebhooks()}.
  */
 @ApplicationScoped
 public class NextcloudWebhookRegistrationService {
@@ -125,7 +128,8 @@ public class NextcloudWebhookRegistrationService {
             final WebhookMessage request = buildMessage(className);
             final OCSMessage<WebhookMessage> response = client.registerWebhook(request);
             if (response.ocs().meta().statuscode() == 200) {
-                logger.infof("Registered webhook for event '%s' and webhook %s to '%s'", className,
+                logger.infof("Registered webhook with id %s for event '%s' and method %s to '%s'",
+                        response.ocs().data().id(), className,
                         request.httpMethod(),
                         request.uri());
                 return response.ocs().data();
@@ -209,7 +213,8 @@ public class NextcloudWebhookRegistrationService {
 
     /**
      * Deletes all webhooks that were registered during this application's lifetime,
-     * provided {@link NextcloudWebhookBuildConfig#deregisterWebhooksOnShutdown()} is
+     * provided {@link NextcloudWebhookBuildConfig#deregisterWebhooksOnShutdown()}
+     * is
      * {@code true}. Errors for individual deletions are caught and logged.
      */
     public void deleteRegisteredWebhooks() {
