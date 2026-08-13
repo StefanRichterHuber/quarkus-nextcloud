@@ -1,10 +1,14 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.auth;
 
+import java.security.Principal;
 import java.util.Optional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudOIDCConfig;
 import io.quarkus.arc.DefaultBean;
+import io.quarkus.security.credential.TokenCredential;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
@@ -22,6 +26,10 @@ import jakarta.inject.Inject;
  * <li>nextcloud.user: Username for the nextcloud installation</li>
  * <li>nextcloud.password: Password for the nextcloud installation</li>
  * </ul>
+ * if the nextcloud.oidc.enabled flag is set to true, the user and password
+ * configuration properties are ignored and the user is taken from the
+ * SecurityIdentity of the current request and the password is taken from the
+ * OIDC token of the current request.
  */
 @DefaultBean
 @RequestScoped
@@ -39,8 +47,22 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     @ConfigProperty(name = "nextcloud.password")
     Optional<String> password;
 
+    @Inject
+    SecurityIdentity securityIdentity;
+
+    @Inject
+    NextcloudOIDCConfig oidcConfig;
+
     @Override
     public String getUser() {
+        if (oidcConfig.enabledForUsers() && !securityIdentity.isAnonymous()) {
+            // If OIDC is enabled for users, we take the user from the security identity (so
+            // the current users session)
+            final Principal principal = securityIdentity.getPrincipal();
+            if (principal != null && principal.getName() != null && !principal.getName().isEmpty()) {
+                return principal.getName();
+            }
+        }
         return user
                 .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
                         + " NextcloudAuthProvider requires a user to be set in the configuration (nextcloud.user)"));
@@ -48,11 +70,16 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     }
 
     @Override
-    public String getPassword() {
+    public String getSecret() {
+        if (oidcConfig.enabledForUsers() && !securityIdentity.isAnonymous()) {
+            final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
+            if (cred != null) {
+                return cred.getToken();
+            }
+        }
         return password
                 .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
                         + " NextcloudAuthProvider requires a password to be set in the configuration (nextcloud.password)"));
-
     }
 
     @Override
@@ -67,7 +94,7 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     }
 
     @Override
-    public void setPassword(String password) {
+    public void setSecret(String password) {
         this.password = Optional.ofNullable(password);
     }
 

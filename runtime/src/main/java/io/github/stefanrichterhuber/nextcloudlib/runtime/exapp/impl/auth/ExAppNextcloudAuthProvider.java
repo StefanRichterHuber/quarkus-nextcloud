@@ -13,13 +13,18 @@ import jakarta.inject.Inject;
 
 /**
  * ExApp-specific {@link NextcloudAuthProvider} that resolves credentials from
- * the AppAPI runtime configuration ({@code nextcloud.url}, {@code nextcloud.user},
+ * the AppAPI runtime configuration ({@code nextcloud.url},
+ * {@code nextcloud.user},
  * and the shared {@code app.secret}).
  *
- * <p>Registered as a {@link DefaultBean} with a priority 1000 above the standard
- * config-based provider, so it wins the CDI resolution when ExApp mode is active.
- * User and server properties are mutable so that per-request credentials injected
- * by {@link io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExAppAuthHandler}
+ * <p>
+ * Registered as a {@link DefaultBean} with a priority 1000 above the standard
+ * config-based provider, so it wins the CDI resolution when ExApp mode is
+ * active.
+ * User and server properties are mutable so that per-request credentials
+ * injected
+ * by
+ * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.NextcloudExAppAuthHandler}
  * can override the defaults.
  */
 @DefaultBean
@@ -52,7 +57,7 @@ public class ExAppNextcloudAuthProvider implements NextcloudAuthProvider {
     }
 
     @Override
-    public String getPassword() {
+    public String getSecret() {
         if (password.isPresent()) {
             return password.get();
         }
@@ -70,7 +75,7 @@ public class ExAppNextcloudAuthProvider implements NextcloudAuthProvider {
     }
 
     @Override
-    public void setPassword(String password) {
+    public void setSecret(String password) {
         this.password = Optional.ofNullable(password);
     }
 

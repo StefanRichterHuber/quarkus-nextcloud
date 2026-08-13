@@ -201,6 +201,6 @@ public class NextcloudLoginService {
      * @param credentials Nextcloud user credentials
      */
     public boolean deleteUserAccount(NextcloudUserCredentials credentials) {
-        return deleteUserAccount(credentials.loginName(), credentials.appPassword(), credentials.server());
+        return deleteUserAccount(credentials.loginName(), credentials.secret(), credentials.server());
     }
 }
