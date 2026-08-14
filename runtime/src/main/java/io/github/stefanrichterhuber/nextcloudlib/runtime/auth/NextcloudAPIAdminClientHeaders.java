@@ -27,7 +27,7 @@ public class NextcloudAPIAdminClientHeaders implements ClientHeadersFactory {
     @Override
     public MultivaluedMap<String, String> update(MultivaluedMap<String, String> incomingHeaders,
             MultivaluedMap<String, String> clientOutgoingHeaders) {
-        final MultivaluedMap<String, String> result = provider.getRequiredHeaders();
+        final MultivaluedMap<String, String> result = provider.getCredentials().getRequiredHeaders();
         return result;
     }
 }

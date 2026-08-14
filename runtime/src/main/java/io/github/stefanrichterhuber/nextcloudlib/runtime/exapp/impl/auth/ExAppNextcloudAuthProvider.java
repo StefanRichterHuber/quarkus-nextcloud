@@ -6,6 +6,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.quarkus.arc.DefaultBean;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
@@ -34,6 +35,8 @@ public class ExAppNextcloudAuthProvider implements NextcloudAuthProvider {
     /** CDI priority used by this provider — higher than the standard provider. */
     public static final int PRIORITY = NextcloudAuthProvider.STANDARD_PRIORITY + 1000;
 
+    private NextcloudUserCredentials creds = null;
+
     @Inject
     NextcloudExappAppConfig config;
 
@@ -45,42 +48,26 @@ public class ExAppNextcloudAuthProvider implements NextcloudAuthProvider {
     @ConfigProperty(name = "nextcloud.user")
     Optional<String> user;
 
-    private Optional<String> password = Optional.empty();
+    @Override
+    public void setCredentials(NextcloudUserCredentials creds) {
+        this.creds = creds;
+    }
 
     @Override
-    public String getUser() {
-        if (user.isPresent()) {
-            return user.get();
+    public NextcloudUserCredentials getCredentials() {
+        if (this.creds != null) {
+            return this.creds;
         }
-        // Empty string is the default user
-        return "";
-    }
-
-    @Override
-    public String getSecret() {
-        if (password.isPresent()) {
-            return password.get();
-        }
-        return config.secret().get();
-    }
-
-    @Override
-    public String getServer() {
-        return serverUrl.get();
-    }
-
-    @Override
-    public void setUser(String user) {
-        this.user = Optional.ofNullable(user);
-    }
-
-    @Override
-    public void setSecret(String password) {
-        this.password = Optional.ofNullable(password);
-    }
-
-    @Override
-    public void setServer(String server) {
-        this.serverUrl = Optional.ofNullable(server);
+        // '' (empty string) is used as a placeholder for the user if no user is
+        // configured. This user can read and write some global configuration.
+        String user = this.user.orElse("");
+        String secret = config.secret().orElseThrow(() -> new IllegalStateException(
+                "Using the ExApp-specific " + this.getClass().getName()
+                        + " NextcloudAuthProvider requires a server url to be set in the configuration (app.secret)"));
+        String server = this.serverUrl.orElseThrow(() -> new IllegalStateException(
+                "Using the ExApp-specific " + this.getClass().getName()
+                        + " NextcloudAuthProvider requires a server url to be set in the configuration (nextcloud.url)"));
+        this.creds = new NextcloudUserCredentials(user, secret, server, NextcloudUserCredentials.Mode.EXAPP_API);
+        return this.creds;
     }
 }

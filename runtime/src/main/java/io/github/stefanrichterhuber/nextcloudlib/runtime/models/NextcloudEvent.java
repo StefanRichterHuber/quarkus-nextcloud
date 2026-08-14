@@ -87,7 +87,7 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
             @JsonProperty("owner") Trigger owner) {
         public record Trigger(String userId, String token, String baseUrl) {
             public NextcloudUserCredentials toUserCredentials() {
-                return new NextcloudUserCredentials(userId, token, baseUrl);
+                return new NextcloudUserCredentials(userId, token, baseUrl, NextcloudUserCredentials.Mode.APP_PASSWORD);
             }
         }
     }

@@ -6,6 +6,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAdmin;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.impl.CustomHeaderSardineImpl;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
@@ -50,8 +51,8 @@ public class SardineProvider {
      * @return
      */
     private Sardine buildSardine(NextcloudAuthProvider authProvider) {
-        final Sardine sardine = new CustomHeaderSardineImpl(authProvider.getRequiredHeaders());
-        if (authProvider.getMode() == NextcloudAuthProvider.Mode.APP_PASSWORD) {
+        final Sardine sardine = new CustomHeaderSardineImpl(authProvider.getCredentials().getRequiredHeaders());
+        if (authProvider.getCredentials().mode() == NextcloudUserCredentials.Mode.APP_PASSWORD) {
             sardine.enablePreemptiveAuthentication(authProvider.getServer());
             sardine.enablePreemptiveAuthentication(
                     authProvider.getServer().replace("https://", "").replace("http://", ""));

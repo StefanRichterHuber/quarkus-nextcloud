@@ -57,6 +57,10 @@ public class NextcloudDevServicesResultBuildItem {
     public static final String NEXTCLOUD_URL_PROPERTY = "nextcloud.url";
     public static final String NEXTCLOUD_USER_PROPERTY = "nextcloud.user";
     public static final String NEXTCLOUD_PASSWORD_PROPERTY = "nextcloud.password";
+
+    public static final String NEXTCLOUD_ADMIN_USER_PROPERTY = "nextcloud.admin-user";
+    public static final String NEXTCLOUD_ADMIN_PASSWORD_PROPERTY = "nextcloud.admin-password";
+
     public static final String NEXTCLOUD_WEBHOOK_HOST_PROPERTY = "nextcloud.webhook.host";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
     public static final String NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY = "quarkus.oidc.credentials.secret"; // QUARKUS_OIDC_CREDENTIALS_SECRET
@@ -149,8 +153,16 @@ public class NextcloudDevServicesResultBuildItem {
         Map<String, String> configOverrides = new HashMap<>();
 
         configOverrides.put(NEXTCLOUD_URL_PROPERTY, newUrl);
+
+        // Admin user and standard user are the same for dev service, so that the dev
+        // service can be used for both admin and standard user scenarios. The password
+        // is also the same for both.
         configOverrides.put(NEXTCLOUD_USER_PROPERTY, user);
         configOverrides.put(NEXTCLOUD_PASSWORD_PROPERTY, password);
+
+        configOverrides.put(NEXTCLOUD_ADMIN_USER_PROPERTY, user);
+        configOverrides.put(NEXTCLOUD_ADMIN_PASSWORD_PROPERTY, password);
+
         if (apps.contains(NEXTCLOUD_APP_WEBHOOK_LISTENERS)) {
             configOverrides = installWebhookSupport(container, configOverrides, webhookWorkerEnabled);
         }
@@ -159,7 +171,7 @@ public class NextcloudDevServicesResultBuildItem {
         }
         if (!appApiSupport && (oidcBuildConfig.enabledForUsers() || oidcBuildConfig.enabledForAdmins())) {
             configOverrides = installOIDCProvider(container, configOverrides);
-            configOverrides = installOIDC(container, configOverrides);
+            configOverrides = installOIDC(container, configOverrides, oidcBuildConfig);
         }
 
         String authMode = "'Plain App Password'";
@@ -310,7 +322,7 @@ public class NextcloudDevServicesResultBuildItem {
      * @return
      */
     private Map<String, String> installOIDC(NextcloudContainer container,
-            Map<String, String> configOverrides) {
+            Map<String, String> configOverrides, NextcloudOIDCConfig oidcBuildConfig) {
 
         final Map<String, String> result = new HashMap<>(); //
         result.putAll(configOverrides);
@@ -340,7 +352,13 @@ public class NextcloudDevServicesResultBuildItem {
         // use it in place of the admin password so consumers authenticate via OIDC.
         final String accessToken = obtainOIDCAccessToken(nextcloudUrl, adminUser, adminPassword, clientId,
                 clientSecret);
-        result.put(NEXTCLOUD_PASSWORD_PROPERTY, accessToken);
+
+        if (oidcBuildConfig.enabledForUsers()) {
+            result.put(NEXTCLOUD_PASSWORD_PROPERTY, accessToken);
+        }
+        if (oidcBuildConfig.enabledForAdmins()) {
+            result.put(NEXTCLOUD_ADMIN_PASSWORD_PROPERTY, accessToken);
+        }
 
         log.info(
                 "Installed nextcloud OIDC login support for admin user and replaced password with access token for dev service");

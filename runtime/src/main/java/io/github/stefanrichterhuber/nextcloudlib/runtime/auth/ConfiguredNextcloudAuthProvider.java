@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudOIDCConfig;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -53,54 +55,42 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     @Inject
     NextcloudOIDCConfig oidcConfig;
 
+    private NextcloudUserCredentials creds = null;
+
     @Override
-    public String getUser() {
-        if (oidcConfig.enabledForUsers() && !securityIdentity.isAnonymous()) {
-            // If OIDC is enabled for users, we take the user from the security identity (so
-            // the current users session)
-            final Principal principal = securityIdentity.getPrincipal();
-            if (principal != null && principal.getName() != null && !principal.getName().isEmpty()) {
-                return principal.getName();
+    public NextcloudUserCredentials getCredentials() {
+        if (creds == null) {
+            String user = null;
+            String secret = null;
+            final Mode mode = oidcConfig.enabledForUsers() ? NextcloudUserCredentials.Mode.OIDC_TOKEN
+                    : NextcloudUserCredentials.Mode.APP_PASSWORD;
+            final String server = serverUrl.orElseThrow(() -> new IllegalStateException("Using the default "
+                    + this.getClass().getName()
+                    + " NextcloudAuthProvider requires a server url to be set in the configuration (nextcloud.url)"));
+            if (mode == NextcloudUserCredentials.Mode.OIDC_TOKEN && !securityIdentity.isAnonymous()) {
+                // If OIDC is enabled for users, we take the user from the security identity (so
+                // the current users session)
+                final Principal principal = securityIdentity.getPrincipal();
+                final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
+                user = principal.getName();
+                secret = cred.getToken();
+            } else {
+                user = this.user
+                        .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
+                                + " NextcloudAuthProvider requires a user to be set in the configuration (nextcloud.user)"));
+                secret = this.password
+                        .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
+                                + " NextcloudAuthProvider requires a password to be set in the configuration (nextcloud.password)"));
             }
+
+            creds = new NextcloudUserCredentials(user, secret, server, mode);
         }
-        return user
-                .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
-                        + " NextcloudAuthProvider requires a user to be set in the configuration (nextcloud.user)"));
-
+        return creds;
     }
 
     @Override
-    public String getSecret() {
-        if (oidcConfig.enabledForUsers() && !securityIdentity.isAnonymous()) {
-            final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
-            if (cred != null) {
-                return cred.getToken();
-            }
-        }
-        return password
-                .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
-                        + " NextcloudAuthProvider requires a password to be set in the configuration (nextcloud.password)"));
-    }
-
-    @Override
-    public String getServer() {
-        return serverUrl.orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
-                + " NextcloudAuthProvider requires a server url to be set in the configuration (nextcloud.url)"));
-    }
-
-    @Override
-    public void setUser(String user) {
-        this.user = Optional.ofNullable(user);
-    }
-
-    @Override
-    public void setSecret(String password) {
-        this.password = Optional.ofNullable(password);
-    }
-
-    @Override
-    public void setServer(String server) {
-        this.serverUrl = Optional.ofNullable(server);
+    public void setCredentials(NextcloudUserCredentials creds) {
+        this.creds = creds;
     }
 
 }
