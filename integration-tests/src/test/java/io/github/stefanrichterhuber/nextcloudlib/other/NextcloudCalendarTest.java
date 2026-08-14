@@ -8,13 +8,16 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService.Calendar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService.WebDavCalendar;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 
 @QuarkusTest
+@TestProfile(AppPasswordTestProfile.class)
 public class NextcloudCalendarTest {
 
     @Inject
@@ -28,11 +31,8 @@ public class NextcloudCalendarTest {
         for (Calendar c : calendars) {
             List<WebDavCalendar> cals = service.fetchCalendar(c, ZonedDateTime.now().minusDays(10),
                     ZonedDateTime.now());
-
-            for (WebDavCalendar wdc : cals) {
-                System.out.println(wdc);
-            }
-
+            assertNotNull(cals);
+            // assertFalse(cals.isEmpty()); // Test system calendar is empty
         }
     }
 }

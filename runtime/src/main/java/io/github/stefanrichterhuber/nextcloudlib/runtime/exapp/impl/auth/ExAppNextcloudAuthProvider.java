@@ -60,11 +60,11 @@ public class ExAppNextcloudAuthProvider implements NextcloudAuthProvider {
         }
         // '' (empty string) is used as a placeholder for the user if no user is
         // configured. This user can read and write some global configuration.
-        String user = this.user.orElse("");
-        String secret = config.secret().orElseThrow(() -> new IllegalStateException(
+        final String user = this.user.orElse("");
+        final String secret = config.secret().orElseThrow(() -> new IllegalStateException(
                 "Using the ExApp-specific " + this.getClass().getName()
                         + " NextcloudAuthProvider requires a server url to be set in the configuration (app.secret)"));
-        String server = this.serverUrl.orElseThrow(() -> new IllegalStateException(
+        final String server = this.serverUrl.orElseThrow(() -> new IllegalStateException(
                 "Using the ExApp-specific " + this.getClass().getName()
                         + " NextcloudAuthProvider requires a server url to be set in the configuration (nextcloud.url)"));
         this.creds = new NextcloudUserCredentials(user, secret, server, NextcloudUserCredentials.Mode.EXAPP_API);

@@ -44,13 +44,13 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
 
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookHandler.class);
 
-    private final NextcloudWebhookBuildConfig config;
+    private final NextcloudWebhookConfig config;
     private final NextcloudWebhookSecretHolder secretHolder;
     private final NextcloudEventDispatcher dispatcher;
     private final ObjectMapper mapper;
 
     public NextcloudWebhookHandler() {
-        config = Arc.container().select(NextcloudWebhookBuildConfig.class)
+        config = Arc.container().select(NextcloudWebhookConfig.class)
                 .get();
         secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
 

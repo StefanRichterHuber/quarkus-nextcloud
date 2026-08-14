@@ -27,7 +27,7 @@ public class NextcloudWebhookSecretHolder {
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookSecretHolder.class);
 
     @Inject
-    NextcloudWebhookBuildConfig config;
+    NextcloudWebhookConfig config;
 
     private String secret;
 

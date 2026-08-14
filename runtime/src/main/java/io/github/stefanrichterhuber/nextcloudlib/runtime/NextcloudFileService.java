@@ -522,7 +522,7 @@ public class NextcloudFileService {
         // At the moment only search queries for files are supported meaning the the
         // scope should always start with files/$username.
         if (!query.getFrom().startsWith(fromPrefix)) {
-            logger.errorf("Search queries must start with '/files/$username/: %s --> Prefix is added", query.getFrom());
+            logger.debugf("Search queries must start with '/files/$username/: %s --> Prefix is added", query.getFrom());
 
             final List<Property> select = query.getSelect();
             final String from = fromPrefix

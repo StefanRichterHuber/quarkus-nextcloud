@@ -83,7 +83,7 @@ Add the following Maven dependency to your `pom.xml`. Replace `[current version]
    }
    ```
 
-> **Tip:** The dev service injects `nextcloud.url`, `nextcloud.user`, `nextcloud.password` and `nextcloud.webhook.host` automatically — no `application.properties` entries needed for local development.
+> **Tip:** The dev service injects `nextcloud.url`, `nextcloud.user`, `nextcloud.password`, `nextcloud.admin-user`, `nextcloud.admin-password` and `nextcloud.webhook.host` automatically — no `application.properties` entries needed for local development.
 
 ---
 
@@ -102,6 +102,8 @@ reads credentials from config properties:
 | `nextcloud.url` | Base URL of the Nextcloud instance |
 | `nextcloud.user` | Username |
 | `nextcloud.password` | Password |
+| `nextcloud.admin-user` | Username for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.user` |
+| `nextcloud.admin-password` | Password for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.password` |
 
 ### CDI Services
 
@@ -138,15 +140,17 @@ The dev service injects the following properties into the running application:
 | Property | Description |
 | --- | --- |
 | `nextcloud.url` | Base URL of the started Nextcloud instance |
-| `nextcloud.user` | Admin username |
-| `nextcloud.password` | Admin password |
+| `nextcloud.user` | Nextcloud user |
+| `nextcloud.password` | Nextcloud password |
+| `nextcloud.admin-user` | Admin username (same as `nextcloud.user` for dev services) |
+| `nextcloud.admin-password` | Admin password (same as `nextcloud.password` for dev services) |
 
 ### Nextcloud Webhook Events
 
 The extension can automatically register Nextcloud webhook listeners and dispatch incoming events
 to annotated CDI bean methods. The webhook endpoint and the registration with Nextcloud are set
 up entirely at build time — no configuration changes are needed when adding or removing event
-handlers.
+handlers. Registering event handlers requires admin credentials, though. So provides these, either by `nextcloud.admin-user` / `nextcloud.admin-password` or a custom `NextcloudAuthProvider` with a `@NextcloudAdmin` qualifier.
 
 #### Receiving events
 

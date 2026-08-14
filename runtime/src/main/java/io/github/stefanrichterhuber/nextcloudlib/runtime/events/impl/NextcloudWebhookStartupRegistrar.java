@@ -15,10 +15,7 @@ import jakarta.inject.Inject;
  *
  * <p>
  * This bean is only added to the CDI container when at least one
- * {@link OnNextcloudEvent} handler method is present. On startup it queries the
- * Nextcloud webhook API, skips already-registered webhooks (unless
- * {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}),
- * and registers any missing ones.
+ * {@link OnNextcloudEvent} handler method is present.
  * </p>
  *
  * <p>

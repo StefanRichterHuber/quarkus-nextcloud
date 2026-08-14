@@ -17,13 +17,16 @@ import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
 import com.github.difflib.patch.PatchFailedException;
 
+import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 
 @QuarkusTest
+@TestProfile(AppPasswordTestProfile.class)
 public class NextcloudFileDiffTest {
     private static final String ROOT_DIR = "/TESTDIRDIFF";
     private final static String TEST_TEXT1 = """
