@@ -195,8 +195,8 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
      *                   removed from
      * @param tagIds     the identifiers of the system tags that were assigned or
      *                   removed
-     * @see <a href=
-     *      "https://github.com/nextcloud/server/pull/61490">Format issue
+     * @see <a href="https://github.com/nextcloud/server/pull/61490">Format
+     *      issue</a>
      */
     public record SystemTagEvent(@JsonProperty("class") String className, String objectType, List<String> objectIds,
             List<Integer> tagIds) implements Event {

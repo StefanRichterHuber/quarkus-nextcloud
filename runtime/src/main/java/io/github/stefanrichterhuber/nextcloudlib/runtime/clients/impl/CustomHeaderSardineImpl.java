@@ -19,6 +19,11 @@ import jakarta.ws.rs.core.MultivaluedMap;
 public class CustomHeaderSardineImpl extends SardineImpl {
     private final MultivaluedMap<String, String> headers;
 
+    /**
+     * Creates a new Sardine instance
+     * 
+     * @param headers HTTP Headers to apply to each request
+     */
     public CustomHeaderSardineImpl(MultivaluedMap<String, String> headers) {
         this.headers = headers;
         super();

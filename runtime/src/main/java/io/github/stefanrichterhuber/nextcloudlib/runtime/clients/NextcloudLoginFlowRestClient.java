@@ -18,11 +18,35 @@ import jakarta.ws.rs.core.Response;
  *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
  */
 public interface NextcloudLoginFlowRestClient {
+    /**
+     * 
+     * InitiateLoginFlowV2Response
+     * 
+     * @param login URL the application user needs to access with the browser to
+     *              continue the
+     *              login flow on the user side
+     * @param poll  Polling parameters for the application
+     */
     public record InitiateLoginFlowV2Response(String login, Poll poll) {
+        /**
+         * 
+         * Poll parameters
+         * 
+         * @param token    Token for polling
+         * @param endpoint Endpoint for polling
+         */
         public record Poll(String token, String endpoint) {
         }
     }
 
+    /**
+     * 
+     * NextcloudAppCredentials provided by the LoginFlow
+     * 
+     * @param server      Nextcloud server
+     * @param loginName   Nextcloud login name
+     * @param appPassword Nextcloud login password
+     */
     public record NextcloudAppCredentials(String server, String loginName, String appPassword) {
         public NextcloudUserCredentials toUserCredentials() {
             return new NextcloudUserCredentials(loginName, appPassword, server, Mode.APP_PASSWORD);
@@ -32,12 +56,21 @@ public interface NextcloudLoginFlowRestClient {
     /**
      * Initiate the login flow v2. The user agent paramter equals to the application
      * name shown in the Nextcloud login window
+     * 
+     * @param userAgent User agent to present (shown to the user in the confirmation
+     *                  dialog)
      */
     @POST
     @Path("index.php/login/v2")
     @Produces(MediaType.APPLICATION_JSON)
     InitiateLoginFlowV2Response initiateLoginFlowV2(@HeaderParam("User-Agent") String userAgent);
 
+    /**
+     * Polls if the user already performed the login
+     * 
+     * @param token Poll-token (provided by {@link #initiateLoginFlowV2(String)} )
+     * @return
+     */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Path("login/v2/poll")

@@ -23,6 +23,11 @@ import jakarta.ws.rs.core.Response;
 public interface NextcloudRestClient {
     /**
      * Request body for creating a new global system tag.
+     * 
+     * @param name           User visible name of the tag
+     * @param userVisible    Is this tag visible to the user
+     * @param userAssignable Can the user assign this tag
+     * @param canAssign      Can this tag be assigned
      */
     @RegisterForReflection
     public static record CreateSystemTagRequest(String name, boolean userVisible, boolean userAssignable,
