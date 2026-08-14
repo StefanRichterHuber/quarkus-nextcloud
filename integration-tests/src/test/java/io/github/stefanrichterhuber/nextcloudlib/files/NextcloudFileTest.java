@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FileQueryResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
@@ -18,9 +19,11 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Condition
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Property;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 
 @QuarkusTest
+@TestProfile(AppPasswordTestProfile.class)
 public class NextcloudFileTest {
 
     private static final String ROOT_DIR = "/TESTDIR";

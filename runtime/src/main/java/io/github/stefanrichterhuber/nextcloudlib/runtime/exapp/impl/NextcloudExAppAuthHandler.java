@@ -27,7 +27,9 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
     public static final String HEADER_AA_VERSION = "AA-VERSION";
     /** HTTP header carrying the ExApp ID that must match {@code app.id}. */
     public static final String HEADER_EX_APP_ID = "EX-APP-ID";
-    /** HTTP header carrying the ExApp version that must match {@code app.version}. */
+    /**
+     * HTTP header carrying the ExApp version that must match {@code app.version}.
+     */
     public static final String HEADER_EX_APP_VERSION = "EX-APP-VERSION";
     /** HTTP header carrying the Base64-encoded {@code user:secret} credentials. */
     public static final String HEADER_AUTHORIZATION_APP_API = "AUTHORIZATION-APP-API";
@@ -90,7 +92,8 @@ public class NextcloudExAppAuthHandler implements io.vertx.core.Handler<RoutingC
             return;
         }
 
-        event.put(PROPERTY_CREDENTIALS, new NextcloudUserCredentials(user, password, nextcloudUrl));
+        event.put(PROPERTY_CREDENTIALS,
+                new NextcloudUserCredentials(user, password, nextcloudUrl, NextcloudUserCredentials.Mode.EXAPP_API));
 
         event.next();
     }

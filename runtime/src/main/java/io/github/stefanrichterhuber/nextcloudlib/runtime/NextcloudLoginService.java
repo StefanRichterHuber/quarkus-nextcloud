@@ -20,7 +20,6 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
 
 /**
  * Service for handling the Nextcloud Login Flow. It initiates the login flow,
@@ -201,6 +200,6 @@ public class NextcloudLoginService {
      * @param credentials Nextcloud user credentials
      */
     public boolean deleteUserAccount(NextcloudUserCredentials credentials) {
-        return deleteUserAccount(credentials.loginName(), credentials.appPassword(), credentials.server());
+        return deleteUserAccount(credentials.loginName(), credentials.secret(), credentials.server());
     }
 }

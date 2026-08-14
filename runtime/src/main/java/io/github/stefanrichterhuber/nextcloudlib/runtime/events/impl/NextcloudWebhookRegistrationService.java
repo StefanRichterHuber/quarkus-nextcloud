@@ -35,7 +35,7 @@ import jakarta.ws.rs.core.MediaType;
  * <p>
  * On {@link #registerWebhooks()} it queries the current list of registered
  * webhooks, skips entries that already point to this application's callback URL
- * (unless {@link NextcloudWebhookBuildConfig#alwaysRegister()} is
+ * (unless {@link NextcloudWebhookConfig#alwaysRegister()} is
  * {@code true}),
  * and registers any missing ones. The IDs of newly registered webhooks are
  * kept in memory so they can be cleaned up by
@@ -48,6 +48,9 @@ public class NextcloudWebhookRegistrationService {
 
     @Inject
     NextcloudWebhookBuildConfig staticConfig;
+
+    @Inject
+    NextcloudWebhookConfig config;
 
     @Inject
     NextcloudWebhookSecretHolder secretHolder;
@@ -83,7 +86,7 @@ public class NextcloudWebhookRegistrationService {
             return host + path;
         } else {
 
-            String host = staticConfig.host();
+            String host = config.host();
             if (host.endsWith("/")) {
                 host = host.substring(0, host.length() - 1);
             }
@@ -111,7 +114,7 @@ public class NextcloudWebhookRegistrationService {
                         "Content-Type", MediaType.APPLICATION_JSON,
                         "Accept", MediaType.APPLICATION_JSON),
                 AuthMethod.HEADER,
-                Map.of(staticConfig.header(), secretHolder.getSecret()),
+                Map.of(config.header(), secretHolder.getSecret()),
                 new TokenNeeded(List.of(), List.of("trigger")));
     }
 
@@ -149,7 +152,7 @@ public class NextcloudWebhookRegistrationService {
      * Registers webhooks for all event class names declared by the known
      * {@link NextcloudEventInvoker} instances. Already-registered webhooks at the
      * same callback URL are skipped unless
-     * {@link NextcloudWebhookBuildConfig#alwaysRegister()} is {@code true}.
+     * {@link NextcloudWebhookConfig#alwaysRegister()} is {@code true}.
      * Errors are caught and logged so that registration failures do not prevent
      * the application from starting.
      */
@@ -187,7 +190,7 @@ public class NextcloudWebhookRegistrationService {
                         .orElse(null);
 
                 if (existing != null) {
-                    if (staticConfig.alwaysRegister()) {
+                    if (config.alwaysRegister()) {
                         logger.infof("Re-registering webhook for %s at %s (alwaysRegister=true)",
                                 className, url);
                         client.deleteWebhook(existing.id());
@@ -213,13 +216,13 @@ public class NextcloudWebhookRegistrationService {
 
     /**
      * Deletes all webhooks that were registered during this application's lifetime,
-     * provided {@link NextcloudWebhookBuildConfig#deregisterWebhooksOnShutdown()}
+     * provided {@link NextcloudWebhookConfig#deregisterWebhooksOnShutdown()}
      * is
      * {@code true}. Errors for individual deletions are caught and logged.
      */
     public void deleteRegisteredWebhooks() {
 
-        if (staticConfig.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
+        if (config.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
             final NextcloudWebhookRestClient client = buildClient();
             logger.debugf("Deleteing registered webhooks: %s",
                     this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));

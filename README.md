@@ -83,7 +83,7 @@ Add the following Maven dependency to your `pom.xml`. Replace `[current version]
    }
    ```
 
-> **Tip:** The dev service injects `nextcloud.url`, `nextcloud.user`, `nextcloud.password` and `nextcloud.webhook.host` automatically — no `application.properties` entries needed for local development.
+> **Tip:** The dev service injects `nextcloud.url`, `nextcloud.user`, `nextcloud.password`, `nextcloud.admin-user`, `nextcloud.admin-password` and `nextcloud.webhook.host` automatically — no `application.properties` entries needed for local development.
 
 ---
 
@@ -91,17 +91,34 @@ Add the following Maven dependency to your `pom.xml`. Replace `[current version]
 
 ### Authentication
 
-Provide an `ApplicationScoped` or `RequestScoped` implementation of
+Provide a `RequestScoped` implementation of
 `io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider` to supply the
-Nextcloud server URL and user credentials to all other services. A default implementation
-(`io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAuthProvider`)
-reads credentials from config properties:
+Nextcloud server URL and user credentials to all other services. A simple default implementation
+(`io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAuthProvider` and `io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAdminAuthProvider` for situations where specifically admin credentials are necessary) reads credentials from config properties:
 
 | Property | Description |
 | --- | --- |
 | `nextcloud.url` | Base URL of the Nextcloud instance |
 | `nextcloud.user` | Username |
 | `nextcloud.password` | Password |
+| `nextcloud.admin-user` | Username for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.user` |
+| `nextcloud.admin-password` | Password for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.password` |
+| `nextcloud.token` | OIDC token to use if `nextcloud.oidc.enabled-for-users` is enabled |
+| `nextcloud.admin-token` | OIDC token for admin acccess to use if `nextcloud.oidc.enabled-for-admins` is enabled |
+
+#### OIDC support
+
+When the Nextcloud app `user_oidc` is installed and `oidc_provider_bearer_validation` is activated (`occ config:system:set user_oidc oidc_provider_bearer_validation --value=true --type=boolean`), Nextcloud accepts bearer token for API access.
+This is especially useful when the java application and Nextcloud instance accept a common OIDC provider, so that access tokens issued for the app a directly usable for Nextcloud access without provisioning a dedicated app password.
+On the other hand, access tokens have relativly short lifetime, so long-term background jobs still require a dedicated app passwords.
+
+If `nextcloud.oidc.enabled-for-users` or `nextcloud.oidc.enabled-for-admins` is enabled, the default implementations of `io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider` check the current `io.quarkus.security.identity.SecurityIdentity` if some user is logged-in and a valid `io.quarkus.security.credential.TokenCredential` is present and then pass this token down to access Nextcloud. If OIDC access is enabled but no valid `io.quarkus.security.credential.TokenCredential` is found, there is a fall-back to the config properties `nextcloud.token` and `nextcloud.admin-token`.
+
+Nextcloud dev services supports OIDC (enabled by property `nextcloud.dev-services.enable-oidc`):
+
+* Installs Nextcloud OIDC Identity Provider (app `oidc`) and configures a client (client id published as config properties `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ). Set token expiry to 3600s (1h) to have plenty of time for automated tests
+* Installs Nextcloud OIDC App (app `user_oidc`) for authentication and configure the client created before. Enable config items `user_oidc.oidc_provider_bearer_validation` and `user_oidc.httpclient.allowselfsigned` to allow API access with bearer tokens. 
+* Calls the Nextcloud OIDC Identity Provider and obtains an access token and publish it as config properties `nextcloud.token` and `nextcloud.admin-token`
 
 ### CDI Services
 
@@ -132,21 +149,24 @@ is already set.
 | `nextcloud.dev-services.apps` | *(empty)* | Comma-separated list of Nextcloud apps to install |
 | `nextcloud.dev-services.enable-ex-app` | `false` | Install AppAPI, register a local daemon, and register this app as an ExApp |
 | `nextcloud.dev-services.enable-webhook-worker` | `true` | Run the `WebhookCall` background-job worker so webhook events are dispatched without waiting for a cron trigger |
+| `nextcloud.dev-services.enable-oidc` | `false` | Enable OIDC support. Installs nextcloud apps `oidc` and `user_oidc`, configures a client (client id published as `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ) and requests some access tokens (published as config properties `nextcloud.token` and `nextcloud.admin-token`) |
 
 The dev service injects the following properties into the running application:
 
 | Property | Description |
 | --- | --- |
 | `nextcloud.url` | Base URL of the started Nextcloud instance |
-| `nextcloud.user` | Admin username |
-| `nextcloud.password` | Admin password |
+| `nextcloud.user` | Nextcloud user |
+| `nextcloud.password` | Nextcloud password |
+| `nextcloud.admin-user` | Admin username (same as `nextcloud.user` for dev services) |
+| `nextcloud.admin-password` | Admin password (same as `nextcloud.password` for dev services) |
 
 ### Nextcloud Webhook Events
 
 The extension can automatically register Nextcloud webhook listeners and dispatch incoming events
 to annotated CDI bean methods. The webhook endpoint and the registration with Nextcloud are set
 up entirely at build time — no configuration changes are needed when adding or removing event
-handlers.
+handlers. Registering event handlers requires admin credentials, though. So provides these, either by `nextcloud.admin-user` / `nextcloud.admin-password` or a custom `NextcloudAuthProvider` with a `@NextcloudAdmin` qualifier.
 
 #### Receiving events
 

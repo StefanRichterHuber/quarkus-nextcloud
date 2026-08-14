@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvi
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.ByteArrayDataSource;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FileQueryResult;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FileQueryResult.QueriedFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchQuery;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
@@ -144,6 +147,52 @@ public class NextcloudFileService {
 
         final NextcloudFile result = results.isEmpty() ? null : results.get(0);
         return result;
+    }
+
+    /**
+     * Downloads the file by its ID
+     * 
+     * @param fileId ID of the file
+     * @return {@link NextcloudFile} found, or null if file does not exists
+     * @throws IOException
+     */
+    public NextcloudFile getFileById(int fileId) throws IOException {
+        final List<NextcloudFile> results = getFilesByFileIds(List.of(fileId));
+        final NextcloudFile result = results.isEmpty() ? null : results.get(0);
+        return result;
+    }
+
+    /**
+     * Retrieves a list of Nextcloud files by their file IDs.
+     * 
+     * @param fileIds the collection of file IDs to retrieve
+     * @return the list of Nextcloud files
+     * @throws IOException if an error occurs while retrieving the files
+     */
+    public List<NextcloudFile> getFilesByFileIds(Collection<Integer> fileIds) throws IOException {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return List.of();
+        }
+
+        final List<NextcloudFile> files = new ArrayList<>(fileIds.size());
+
+        final Condition condition = Condition.and(Condition.isFile(), fileIds.stream().filter(Objects::nonNull)
+                .map(fileId -> Condition.equals(Property.FILE_ID, fileId)).reduce((c1, c2) -> Condition.or(c1, c2))
+                .get());
+
+        final FileQueryResult result = search(
+                Query.select(Property.DISPLAY_NAME)
+                        .where(condition));
+
+        for (QueriedFile file : result.getFiles()) {
+            final String path = file.getPath();
+            final NextcloudFile nextcloudFile = getFile(path);
+            if (nextcloudFile != null) {
+                files.add(nextcloudFile);
+            }
+        }
+
+        return files;
     }
 
     /**
@@ -473,7 +522,7 @@ public class NextcloudFileService {
         // At the moment only search queries for files are supported meaning the the
         // scope should always start with files/$username.
         if (!query.getFrom().startsWith(fromPrefix)) {
-            logger.errorf("Search queries must start with '/files/$username/: %s --> Prefix is added", query.getFrom());
+            logger.debugf("Search queries must start with '/files/$username/: %s --> Prefix is added", query.getFrom());
 
             final List<Property> select = query.getSelect();
             final String from = fromPrefix

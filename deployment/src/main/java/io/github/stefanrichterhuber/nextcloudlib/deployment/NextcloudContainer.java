@@ -20,6 +20,7 @@ import org.testcontainers.images.builder.Transferable;
  */
 public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     private static final Logger log = Logger.getLogger(NextcloudContainer.class);
+    private static final Logger nextcloudRuntimeLog = Logger.getLogger("Nextcloud Dev Instance");
 
     private static final String DEFAULT_IMAGE = "nextcloud:latest";
     private static final String ADMIN_USER = "admin";
@@ -31,13 +32,16 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     private static final String ADMIN_USER_PROPERTY = "NEXTCLOUD_ADMIN_USER";
     private static final String SQLITE_DATABASE_PROPERTY = "SQLITE_DATABASE";
 
+    public static final String OCC_COMMAND_SET_CONFIG_VALUE = "config:system:set";
+
     private final List<String> startupScripts = new ArrayList<>();
 
     private final ScheduledExecutorService occExecutor = java.util.concurrent.Executors
             .newScheduledThreadPool(2);
 
     /**
-     * Creates a container using the given image and the built-in default admin credentials.
+     * Creates a container using the given image and the built-in default admin
+     * credentials.
      *
      * @param image Docker image name, e.g. {@code nextcloud:latest}
      */
@@ -61,13 +65,17 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
         waitingFor(Wait.forLogMessage("^.*AH00094: Command line: 'apache2 -D FOREGROUND'.*$",
                 1));
         withReuse(false);
+        withLogConsumer(of -> {
+            nextcloudRuntimeLog.debug(of.getUtf8StringWithoutLineEnding());
+        });
         // Necessary to reach external apps
         // withExtraHost("host.docker.internal", "host-gateway");
 
     }
 
     /**
-     * Creates a container using the default Nextcloud image and default admin credentials.
+     * Creates a container using the default Nextcloud image and default admin
+     * credentials.
      */
     public NextcloudContainer() {
         this(DEFAULT_IMAGE);
@@ -104,8 +112,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
      * @return this container for chaining
      */
     public NextcloudContainer withApp(String app) {
-        occ("app:install", "-f", "--keep-disabled", app);
-        occ("app:enable", "-f", app);
+        occ("app:install", "-f", "--keep-disabled", app).join();
+        occ("app:enable", "-f", app).join();
         return this;
     }
 
@@ -116,7 +124,35 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
      * @return This container for chaining
      */
     public NextcloudContainer withLogLevel(int logLevel) {
-        occ("config:system:set", "loglevel", "--value=" + logLevel, "--type=integer");
+        this.setConfigValue(null, "loglevel", logLevel).join();
+        return this;
+    }
+
+    /**
+     * Sets a system configuration value in the Nextcloud container. If the
+     * container is not yet running, it is added to the startup scripts, if it is
+     * running directly execute it
+     * 
+     * @param key   Configuration key to set, e.g. {@code loglevel}
+     * @param value Configuration value to set, e.g. {@code 2}
+     * @return This container for chaining
+     */
+    public NextcloudContainer withConfigValue(String key, Object value) {
+        return this.withConfigValue(null, key, value);
+    }
+
+    /**
+     * Sets a system configuration value in the Nextcloud container. If the
+     * container is not yet running, it is added to the startup scripts, if it is
+     * running directly execute it
+     * 
+     * @param field Configuration field to set, e.g. {@code log}
+     * @param key   Configuration key to set, e.g. {@code loglevel}
+     * @param value Configuration value to set, e.g. {@code 2}
+     * @return This container for chaining
+     */
+    public NextcloudContainer withConfigValue(String field, String key, Object value) {
+        this.setConfigValue(field, key, value).join();
         return this;
     }
 
@@ -135,8 +171,10 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
     }
 
     /**
-     * Assembles any deferred startup commands into a post-installation shell script,
-     * copies it into the container at the appropriate hook location, and then starts
+     * Assembles any deferred startup commands into a post-installation shell
+     * script,
+     * copies it into the container at the appropriate hook location, and then
+     * starts
      * the container.
      */
     public void start() {
@@ -201,7 +239,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
 
     /**
      * Executes an {@code occ} command in the container. Wraps the command with the
-     * correct PHP and user context ({@code www-data}) when the container is running,
+     * correct PHP and user context ({@code www-data}) when the container is
+     * running,
      * or schedules it in the post-installation script otherwise.
      *
      * @param command occ sub-command and its arguments, e.g.
@@ -227,6 +266,48 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
             commandList.addAll(List.of(command));
             return exec(commandList.toArray(new String[commandList.size()]));
         }
+    }
+
+    /**
+     * Sets a system configuration value in the Nextcloud container. If the
+     * container is not yet running, it is added to the startup scripts, if it is
+     * running directly execute it
+     * 
+     * @param field Configuration field to set, e.g. {@code log}
+     * @param key   Configuration key to set, e.g. {@code loglevel}
+     * @param value Configuration value to set, e.g. {@code 2}
+     * @param type  Configuration value type, e.g. {@code integer}, {@code string},
+     *              {@code boolean}
+     * @return
+     */
+    public CompletableFuture<Boolean> setConfigValue(String field, String key, String value, String type) {
+        // TODO escape value (e.g. if it contains spaces or special characters) to avoid
+        // shell injection
+        if (field != null && !field.isEmpty()) {
+            return occ(OCC_COMMAND_SET_CONFIG_VALUE, field, key, "--value", value, "--type", type);
+        } else {
+            return occ(OCC_COMMAND_SET_CONFIG_VALUE, key, "--value", value, "--type", type);
+        }
+    }
+
+    /**
+     * Sets a system configuration value in the Nextcloud container. If the
+     * container is not yet running, it is added to the startup scripts, if it is
+     * running directly execute it
+     * 
+     * @param field Configuration field to set, e.g. {@code log}
+     * @param key   Configuration key to set, e.g. {@code loglevel}
+     * @param value Configuration value to set, e.g. {@code 2}
+     * @return
+     */
+    public CompletableFuture<Boolean> setConfigValue(String field, String key, Object value) {
+        String type = "string";
+        if (value instanceof Integer) {
+            type = "integer";
+        } else if (value instanceof Boolean) {
+            type = "boolean";
+        }
+        return setConfigValue(field, key, value.toString(), type);
     }
 
 }

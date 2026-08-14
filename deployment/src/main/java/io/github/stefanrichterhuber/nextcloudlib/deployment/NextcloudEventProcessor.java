@@ -87,53 +87,55 @@ class NextcloudEventProcessor {
      */
     @BuildStep
     void discoverEventHandlers(
+            NextcloudWebhookBuildConfig buildConfig,
             CombinedIndexBuildItem index,
             BuildProducer<NextcloudEventHandlerBuildItem> handlers) {
+        if (buildConfig.autoDiscoveryEnabled()) {
+            for (AnnotationInstance ann : index.getIndex().getAnnotations(ON_NEXTCLOUD_EVENT)) {
+                if (ann.target().kind() != Kind.METHOD) {
+                    continue;
+                }
 
-        for (AnnotationInstance ann : index.getIndex().getAnnotations(ON_NEXTCLOUD_EVENT)) {
-            if (ann.target().kind() != Kind.METHOD) {
-                continue;
+                final MethodInfo method = ann.target().asMethod();
+                final String location = method.declaringClass().name() + "#" + method.name();
+
+                if (method.parametersCount() != 1) {
+                    throw new IllegalStateException(
+                            "@OnNextcloudEvent method " + location
+                                    + " must have exactly one parameter of type NextcloudEvent");
+                }
+
+                final Type paramType = method.parameterType(0);
+                if (!paramType.name().equals(NEXTCLOUD_EVENT)) {
+                    throw new IllegalStateException(
+                            "@OnNextcloudEvent method " + location
+                                    + " parameter must be NextcloudEvent, found: " + paramType.name());
+                }
+
+                if (method.returnType().kind() != Type.Kind.VOID) {
+                    throw new IllegalStateException(
+                            "@OnNextcloudEvent method " + location + " must return void");
+                }
+
+                final String[] eventClassNames = ann.value("events").asStringArray();
+                if (eventClassNames == null || eventClassNames.length == 0) {
+                    throw new IllegalStateException(
+                            "@OnNextcloudEvent method " + location
+                                    + " must specify at least one event class name in value()");
+                }
+
+                final boolean tokenNeeded = Optional.ofNullable(ann.value("tokenNeeded")).map(av -> av.asBoolean())
+                        .orElse(false);
+                final boolean provideAuth = Optional.ofNullable(ann.value("provideAuth")).map(av -> av.asBoolean())
+                        .orElse(false);
+
+                LOG.debugf("Discovered @OnNextcloudEvent handler: %s -> %s", location, eventClassNames);
+
+                handlers.produce(new NextcloudEventHandlerBuildItem(
+                        method.declaringClass().name().toString(),
+                        method.name(),
+                        eventClassNames, tokenNeeded, provideAuth));
             }
-
-            final MethodInfo method = ann.target().asMethod();
-            final String location = method.declaringClass().name() + "#" + method.name();
-
-            if (method.parametersCount() != 1) {
-                throw new IllegalStateException(
-                        "@OnNextcloudEvent method " + location
-                                + " must have exactly one parameter of type NextcloudEvent");
-            }
-
-            final Type paramType = method.parameterType(0);
-            if (!paramType.name().equals(NEXTCLOUD_EVENT)) {
-                throw new IllegalStateException(
-                        "@OnNextcloudEvent method " + location
-                                + " parameter must be NextcloudEvent, found: " + paramType.name());
-            }
-
-            if (method.returnType().kind() != Type.Kind.VOID) {
-                throw new IllegalStateException(
-                        "@OnNextcloudEvent method " + location + " must return void");
-            }
-
-            final String[] eventClassNames = ann.value("events").asStringArray();
-            if (eventClassNames == null || eventClassNames.length == 0) {
-                throw new IllegalStateException(
-                        "@OnNextcloudEvent method " + location
-                                + " must specify at least one event class name in value()");
-            }
-
-            final boolean tokenNeeded = Optional.ofNullable(ann.value("tokenNeeded")).map(av -> av.asBoolean())
-                    .orElse(false);
-            final boolean provideAuth = Optional.ofNullable(ann.value("provideAuth")).map(av -> av.asBoolean())
-                    .orElse(false);
-
-            LOG.debugf("Discovered @OnNextcloudEvent handler: %s -> %s", location, eventClassNames);
-
-            handlers.produce(new NextcloudEventHandlerBuildItem(
-                    method.declaringClass().name().toString(),
-                    method.name(),
-                    eventClassNames, tokenNeeded, provideAuth));
         }
     }
 
@@ -197,10 +199,13 @@ class NextcloudEventProcessor {
 
     /**
      * Registers the shared event-infrastructure CDI beans
-     * ({@link DefaultNextcloudEventDispatcher}, {@link NextcloudWebhookRegistrationService},
-     * {@link NextcloudWebhookSecretHolder}) when at least one handler was discovered.
+     * ({@link DefaultNextcloudEventDispatcher},
+     * {@link NextcloudWebhookRegistrationService},
+     * {@link NextcloudWebhookSecretHolder}) when at least one handler was
+     * discovered.
      *
-     * @param handlers        discovered handler descriptors; beans are skipped when empty
+     * @param handlers        discovered handler descriptors; beans are skipped when
+     *                        empty
      * @param additionalBeans producer for CDI bean registrations
      */
     @BuildStep
@@ -221,11 +226,14 @@ class NextcloudEventProcessor {
     }
 
     /**
-     * Registers {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar}
-     * as a CDI bean when the application is <em>not</em> running as an ExApp. This registrar
+     * Registers
+     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar}
+     * as a CDI bean when the application is <em>not</em> running as an ExApp. This
+     * registrar
      * registers webhooks against Nextcloud using admin credentials on startup.
      *
-     * @param handlers        discovered handler descriptors; bean is skipped when empty
+     * @param handlers        discovered handler descriptors; bean is skipped when
+     *                        empty
      * @param additionalBeans producer for CDI bean registrations
      */
     @BuildStep(onlyIfNot = IsExApp.class)
@@ -244,11 +252,15 @@ class NextcloudEventProcessor {
     }
 
     /**
-     * Registers {@link io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar}
-     * as a CDI bean when the application is running as an ExApp. This registrar registers
-     * webhooks via the ExApp-specific lifecycle hooks rather than admin credentials.
+     * Registers
+     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar}
+     * as a CDI bean when the application is running as an ExApp. This registrar
+     * registers
+     * webhooks via the ExApp-specific lifecycle hooks rather than admin
+     * credentials.
      *
-     * @param handlers        discovered handler descriptors; bean is skipped when empty
+     * @param handlers        discovered handler descriptors; bean is skipped when
+     *                        empty
      * @param additionalBeans producer for CDI bean registrations
      */
     @BuildStep(onlyIf = IsExApp.class)

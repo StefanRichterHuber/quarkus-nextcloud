@@ -1,10 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.auth;
 
-import java.util.Base64;
-
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 
 /**
  * CDI Beans implementing this interface are used to provide location of the
@@ -14,91 +10,35 @@ public interface NextcloudAuthProvider {
     public static final int STANDARD_PRIORITY = 1000;
 
     /**
-     * Additional headers for the request. Usually at least containes a
-     * "OCS-APIRequest": "true"
-     *
-     * @return
-     */
-    default MultivaluedMap<String, String> getCustomHeaders() {
-        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
-        headers.add("OCS-APIRequest", "true");
-        return headers;
-    }
-
-    /**
-     * User for basic auth header
-     *
-     * @return current user
-     */
-    String getUser();
-
-    /**
-     * Password for basic auth header
-     *
-     * @return Password of the current user
-     */
-    String getPassword();
-
-    /**
-     * Nextcloud URL to connect to, e.g. https://nextcloud.example.com:8080
-     *
-     * @return Nextcloud server
-     */
-    String getServer();
-
-    /**
-     * User for basic auth header
-     * 
-     * @param user User to set
-     */
-    void setUser(String user);
-
-    /**
-     * Password for basic auth header
-     * 
-     * @param password Password to set
-     */
-    void setPassword(String password);
-
-    /**
-     * Nextcloud URL to connect to, e.g. https://nextcloud.example.com:8080
-     * 
-     * @param server Server to set
-     */
-    void setServer(String server);
-
-    /**
      * Configures this NextcloudAuthProvider from {@link NextcloudUserCredentials}
      * 
      * @param creds If null, user, password and server is set to null
      */
-    default void setCredentials(NextcloudUserCredentials creds) {
-        if (creds != null) {
-            this.setUser(creds.loginName());
-            this.setPassword(creds.appPassword());
-            this.setServer(creds.server());
-        } else {
-            this.setUser(null);
-            this.setPassword(null);
-            this.setServer(null);
-        }
-    }
+    void setCredentials(NextcloudUserCredentials creds);
 
     /**
      * Returns the {@link NextcloudUserCredentials} for the current user
      */
-    default NextcloudUserCredentials getCredentials() {
-        return new NextcloudUserCredentials(this.getUser(), this.getPassword(), this.getServer());
+    NextcloudUserCredentials getCredentials();
+
+    /**
+     * Return the current user's login name. This is a convenience method that
+     * delegates to {@link #getCredentials()}.
+     * 
+     * @return the nextcloud login name
+     */
+    default String getUser() {
+        return getCredentials().loginName();
     }
 
     /**
-     * Returns a Basic-Auth Authorization header build from {@link #getUser()} and
-     * {@link #getPassword()}
+     * Returns the current users nextcloud server url. This is a convenience method
+     * that delegates to {@link #getCredentials()}.
      * 
-     * @return
+     * @return the nextcloud server url
      */
-    default String getAuthorizationHeader() {
-        String valueToEncode = getUser() + ":" + getPassword();
-        return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+    default String getServer() {
+        return getCredentials().server();
     }
+
 }

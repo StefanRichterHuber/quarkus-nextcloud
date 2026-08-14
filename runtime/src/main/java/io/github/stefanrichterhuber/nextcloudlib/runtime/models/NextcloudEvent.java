@@ -87,7 +87,7 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
             @JsonProperty("owner") Trigger owner) {
         public record Trigger(String userId, String token, String baseUrl) {
             public NextcloudUserCredentials toUserCredentials() {
-                return new NextcloudUserCredentials(userId, token, baseUrl);
+                return new NextcloudUserCredentials(userId, token, baseUrl, NextcloudUserCredentials.Mode.APP_PASSWORD);
             }
         }
     }
@@ -195,6 +195,8 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
      *                   removed from
      * @param tagIds     the identifiers of the system tags that were assigned or
      *                   removed
+     * @see <a href=
+     *      "https://github.com/nextcloud/server/pull/61490">Format issue
      */
     public record SystemTagEvent(@JsonProperty("class") String className, String objectType, List<String> objectIds,
             List<Integer> tagIds) implements Event {
