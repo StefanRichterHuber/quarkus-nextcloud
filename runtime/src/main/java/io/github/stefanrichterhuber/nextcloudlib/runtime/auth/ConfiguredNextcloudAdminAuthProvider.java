@@ -56,6 +56,10 @@ public class ConfiguredNextcloudAdminAuthProvider implements NextcloudAuthProvid
     Optional<String> adminPassword;
 
     @Inject
+    @ConfigProperty(name = "nextcloud.admin-token")
+    Optional<String> token;
+
+    @Inject
     SecurityIdentity securityIdentity;
 
     @Inject
@@ -80,6 +84,11 @@ public class ConfiguredNextcloudAdminAuthProvider implements NextcloudAuthProvid
                 final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
                 user = principal.getName();
                 secret = cred.getToken();
+            } else if (mode == NextcloudUserCredentials.Mode.OIDC_TOKEN && token.isPresent()) {
+                user = this.adminUser.or(() -> this.user)
+                        .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
+                                + " NextcloudAuthProvider requires a user to be set in the configuration (nextcloud.admin-user or nextcloud.user)"));
+                secret = token.get();
             } else {
                 user = this.adminUser.or(() -> this.user)
                         .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()

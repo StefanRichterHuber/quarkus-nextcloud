@@ -27,7 +27,6 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudOIDCConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappConfig;
 import io.quarkus.deployment.IsProduction;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -60,6 +59,9 @@ public class NextcloudDevServicesResultBuildItem {
 
     public static final String NEXTCLOUD_ADMIN_USER_PROPERTY = "nextcloud.admin-user";
     public static final String NEXTCLOUD_ADMIN_PASSWORD_PROPERTY = "nextcloud.admin-password";
+
+    public static final String NEXTCLOUD_TOKEN_PROPERTY = "nextcloud.token";
+    public static final String NEXTCLOUD_ADMIN_TOKEN_PROPERTY = "nextcloud.admin-token";
 
     public static final String NEXTCLOUD_WEBHOOK_HOST_PROPERTY = "nextcloud.webhook.host";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
@@ -103,7 +105,6 @@ public class NextcloudDevServicesResultBuildItem {
     public DevServicesResultBuildItem createContainer(
             List<NextcloudEventHandlerBuildItem> handlers,
             NextcloudDevServicesConfig serviceConfig,
-            NextcloudOIDCConfig oidcBuildConfig,
             NextcloudExappConfig exAppBuildConfig)
             throws IOException, UnsupportedOperationException, InterruptedException {
 
@@ -128,7 +129,7 @@ public class NextcloudDevServicesResultBuildItem {
         if (appApiSupport) {
             apps.add(NEXTCLOUD_APP_APP_API);
         }
-        if (!appApiSupport && (oidcBuildConfig.enabledForUsers() || oidcBuildConfig.enabledForAdmins())) {
+        if (!appApiSupport && serviceConfig.enableOidc()) {
             apps.add("oidc");
             apps.add("user_oidc");
 
@@ -169,13 +170,13 @@ public class NextcloudDevServicesResultBuildItem {
         if (appApiSupport) {
             configOverrides = installAppApi(container, configOverrides);
         }
-        if (!appApiSupport && (oidcBuildConfig.enabledForUsers() || oidcBuildConfig.enabledForAdmins())) {
+        if (!appApiSupport && serviceConfig.enableOidc()) {
             configOverrides = installOIDCProvider(container, configOverrides);
-            configOverrides = installOIDC(container, configOverrides, oidcBuildConfig);
+            configOverrides = installOIDC(container, configOverrides);
         }
 
         String authMode = "'Plain App Password'";
-        if (!appApiSupport && (oidcBuildConfig.enabledForUsers() || oidcBuildConfig.enabledForAdmins())) {
+        if (!appApiSupport && serviceConfig.enableOidc()) {
             authMode = "'OIDC Token'";
         } else if (appApiSupport) {
             authMode = "'ExApp API'";
@@ -322,7 +323,7 @@ public class NextcloudDevServicesResultBuildItem {
      * @return
      */
     private Map<String, String> installOIDC(NextcloudContainer container,
-            Map<String, String> configOverrides, NextcloudOIDCConfig oidcBuildConfig) {
+            Map<String, String> configOverrides) {
 
         final Map<String, String> result = new HashMap<>(); //
         result.putAll(configOverrides);
@@ -345,7 +346,6 @@ public class NextcloudDevServicesResultBuildItem {
                 "--discoveryuri=" + discoveryUri).join();
         container.setConfigValue("user_oidc", "httpclient.allowselfsigned", true).join();
         container.setConfigValue("user_oidc", "oidc_provider_bearer_validation", true).join();
-        container.setConfigValue("user_oidc", "oidc_provider_bearer_validation", true).join();
 
         // Obtain an actual OIDC access token for the admin user by scripting the
         // authorization code flow against the "oidc" provider app started above, and
@@ -353,12 +353,8 @@ public class NextcloudDevServicesResultBuildItem {
         final String accessToken = obtainOIDCAccessToken(nextcloudUrl, adminUser, adminPassword, clientId,
                 clientSecret);
 
-        if (oidcBuildConfig.enabledForUsers()) {
-            result.put(NEXTCLOUD_PASSWORD_PROPERTY, accessToken);
-        }
-        if (oidcBuildConfig.enabledForAdmins()) {
-            result.put(NEXTCLOUD_ADMIN_PASSWORD_PROPERTY, accessToken);
-        }
+        result.put(NEXTCLOUD_TOKEN_PROPERTY, accessToken);
+        result.put(NEXTCLOUD_ADMIN_TOKEN_PROPERTY, accessToken);
 
         log.info(
                 "Installed nextcloud OIDC login support for admin user and replaced password with access token for dev service");

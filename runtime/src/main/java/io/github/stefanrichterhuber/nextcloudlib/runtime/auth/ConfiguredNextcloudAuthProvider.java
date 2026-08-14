@@ -50,6 +50,10 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
     Optional<String> password;
 
     @Inject
+    @ConfigProperty(name = "nextcloud.token")
+    Optional<String> token;
+
+    @Inject
     SecurityIdentity securityIdentity;
 
     @Inject
@@ -74,6 +78,11 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
                 final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
                 user = principal.getName();
                 secret = cred.getToken();
+            } else if (mode == NextcloudUserCredentials.Mode.OIDC_TOKEN && token.isPresent()) {
+                user = this.user
+                        .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
+                                + " NextcloudAuthProvider requires a user to be set in the configuration (nextcloud.user)"));
+                secret = token.get();
             } else {
                 user = this.user
                         .orElseThrow(() -> new IllegalStateException("Using the default " + this.getClass().getName()
@@ -86,6 +95,7 @@ public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {
             creds = new NextcloudUserCredentials(user, secret, server, mode);
         }
         return creds;
+
     }
 
     @Override

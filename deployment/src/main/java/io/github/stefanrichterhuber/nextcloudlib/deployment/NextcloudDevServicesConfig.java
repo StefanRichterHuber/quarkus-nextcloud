@@ -74,4 +74,13 @@ public interface NextcloudDevServicesConfig {
      */
     @WithDefault("true")
     boolean enableWebhookWorker();
+
+    /**
+     * Wheter to install the apps 'oidc' and 'user_oidc', configure the apps and
+     * provide some access tokens (mutual exclusive with {@link #enableExApp()} )
+     * 
+     * @return
+     */
+    @WithDefault("false")
+    boolean enableOidc();
 }

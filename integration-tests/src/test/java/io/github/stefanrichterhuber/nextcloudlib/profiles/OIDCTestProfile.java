@@ -15,6 +15,7 @@ public class OIDCTestProfile implements QuarkusTestProfile {
                 "nextcloud.exapp.enabled", "false", //
                 "nextcloud.oidc.enabled-for-users", "true", //
                 "nextcloud.oidc.enabled-for-admins", "true", //
+                "nextcloud.dev-services.enable-oidc", "true", //
                 "nextcloud.webhook.build.auto-discovery-enabled", "false"//
         );
     }
