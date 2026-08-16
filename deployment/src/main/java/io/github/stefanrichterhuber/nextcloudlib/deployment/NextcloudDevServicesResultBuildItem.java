@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -33,6 +35,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
 import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.runtime.LaunchMode;
+import io.smallrye.config.SmallRyeConfig;
 
 /**
  * Build-step processor that starts a Nextcloud Testcontainers instance as a
@@ -64,6 +67,8 @@ public class NextcloudDevServicesResultBuildItem {
     public static final String NEXTCLOUD_ADMIN_TOKEN_PROPERTY = "nextcloud.admin-token";
 
     public static final String NEXTCLOUD_WEBHOOK_HOST_PROPERTY = "nextcloud.webhook.host";
+
+    public static final String NEXTCLOUD_OIDC_IDP_PROPERTY = "quarkus.oidc.auth-server-url";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
     public static final String NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY = "quarkus.oidc.credentials.secret"; // QUARKUS_OIDC_CREDENTIALS_SECRET
 
@@ -171,7 +176,8 @@ public class NextcloudDevServicesResultBuildItem {
             configOverrides = installAppApi(container, configOverrides);
         }
         if (!appApiSupport && serviceConfig.enableOidc()) {
-            configOverrides = installOIDCProvider(container, configOverrides);
+            configOverrides = installOIDCProvider(container, configOverrides,
+                    serviceConfig.oidcRedirectUrls().orElse(List.of()));
             configOverrides = installOIDC(container, configOverrides);
         }
 
@@ -250,7 +256,8 @@ public class NextcloudDevServicesResultBuildItem {
         return result;
     }
 
-    private Map<String, String> installOIDCProvider(NextcloudContainer container, Map<String, String> configOverrides) {
+    private Map<String, String> installOIDCProvider(NextcloudContainer container, Map<String, String> configOverrides,
+            List<String> redirectURIs) {
         final Map<String, String> result = new HashMap<>(); //
         result.putAll(configOverrides);
 
@@ -298,18 +305,35 @@ public class NextcloudDevServicesResultBuildItem {
         final String clientSecret = RandomStringUtils.secure().nextAlphanumeric(32);
         final String url = configOverrides.get(NEXTCLOUD_URL_PROPERTY);
         final String redirectUri = String.format("%s/apps/user_oidc/code", url);
+        final String clientName = "devservice";
+        result.put(NEXTCLOUD_OIDC_IDP_PROPERTY, url);
         result.put(NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY, clientId);
         result.put(NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY, clientSecret);
 
-        container.occ("oidc:create", "--client_id=" + clientId,
-                "--client_secret=" + clientSecret, "devservice",
-                redirectUri).join();
+        List<String> urls = new ArrayList<>();
+        urls.add(redirectUri);
+        urls.addAll(redirectURIs);
+
+        // TODO resolve ports
+        // TOOD all to one list?
+
+        List<String> command = new ArrayList<>();
+        command.addAll(
+                List.of("oidc:create",
+                        "--client_id=" + clientId,
+                        "--client_secret=" + clientSecret,
+                        "--",
+                        clientName));
+        command.addAll(urls);
+        container.occ(command.stream().toArray(String[]::new));
 
         // Increase expire time to 1 hour to avoid token expiration during dev service
         // usage
         container.setConfigValue("oidc", "expire_time", 3600).join();
-        log.info("Installed nextcloud OIDC provider support for dev service with client id " + clientId + " and secret "
-                + clientSecret);
+        String urlList = urls.stream().map(u -> "\"" + u + "\"").collect(Collectors.joining(" "));
+        log.infof(
+                "Installed nextcloud OIDC provider configuration with client id %s and secret %s for callback urls: %s",
+                clientId, clientSecret, urlList);
         return result;
     }
 

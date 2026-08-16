@@ -83,4 +83,12 @@ public interface NextcloudDevServicesConfig {
      */
     @WithDefault("false")
     boolean enableOidc();
+
+    /**
+     * When OIDC is enabled, add this callback url(s) to the list of accepted URLs
+     * 
+     * @return
+     */
+    @WithDefault("http://localhost:${quarkus.http.test-port:quarkus.http.port}/*")
+    Optional<List<String>> oidcRedirectUrls();
 }

@@ -116,7 +116,7 @@ If `nextcloud.oidc.enabled-for-users` or `nextcloud.oidc.enabled-for-admins` is 
 
 Nextcloud dev services supports OIDC (enabled by property `nextcloud.dev-services.enable-oidc`):
 
-* Installs Nextcloud OIDC Identity Provider (app `oidc`) and configures a client (client id published as config properties `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ). Set token expiry to 3600s (1h) to have plenty of time for automated tests
+* Installs Nextcloud OIDC Identity Provider (app `oidc`) and configures a client (IDP server url, client id and secret published as config properties `quarkus.oidc.auth-server-url`, `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ). Set token expiry to 3600s (1h) to have plenty of time for automated tests
 * Installs Nextcloud OIDC App (app `user_oidc`) for authentication and configure the client created before. Enable config items `user_oidc.oidc_provider_bearer_validation` and `user_oidc.httpclient.allowselfsigned` to allow API access with bearer tokens. 
 * Calls the Nextcloud OIDC Identity Provider and obtains an access token and publish it as config properties `nextcloud.token` and `nextcloud.admin-token`
 
@@ -150,6 +150,7 @@ is already set.
 | `nextcloud.dev-services.enable-ex-app` | `false` | Install AppAPI, register a local daemon, and register this app as an ExApp |
 | `nextcloud.dev-services.enable-webhook-worker` | `true` | Run the `WebhookCall` background-job worker so webhook events are dispatched without waiting for a cron trigger |
 | `nextcloud.dev-services.enable-oidc` | `false` | Enable OIDC support. Installs nextcloud apps `oidc` and `user_oidc`, configures a client (client id published as `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ) and requests some access tokens (published as config properties `nextcloud.token` and `nextcloud.admin-token`) |
+| `nextcloud.dev-services.oidc-redirect-urls` | `http://localhost:${quarkus.http.test-port:quarkus.http.port}/*` |  List of additional urls to register as valid redirect urls for the OIDC Identity provider configuration. |
 
 The dev service injects the following properties into the running application:
 
