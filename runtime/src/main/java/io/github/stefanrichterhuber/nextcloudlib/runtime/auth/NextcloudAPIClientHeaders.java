@@ -6,6 +6,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappApp
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappConfig;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 /**
@@ -28,7 +29,11 @@ public class NextcloudAPIClientHeaders implements ClientHeadersFactory {
     public MultivaluedMap<String, String> update(MultivaluedMap<String, String> incomingHeaders,
             MultivaluedMap<String, String> clientOutgoingHeaders) {
 
-        final MultivaluedMap<String, String> result = provider.getCredentials().getRequiredHeaders();
+        final MultivaluedMap<String, String> generated = provider.getCredentials().getRequiredHeaders();
+        final MultivaluedMap<String, String> result = new MultivaluedHashMap<>();
+        result.putAll(generated);
+        result.putAll(clientOutgoingHeaders);
+
         return result;
     }
 }

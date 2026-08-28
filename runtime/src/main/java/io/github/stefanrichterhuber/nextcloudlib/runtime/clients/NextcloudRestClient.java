@@ -128,8 +128,8 @@ public interface NextcloudRestClient {
      */
     @DELETE
     @Path("/ocs/v2.php/core/apppassword")
-    @Produces(MediaType.APPLICATION_XML)
-    OCSMessage<String> deleteAppPassword(@HeaderParam("Authorization") String authorization);
+    @Produces(MediaType.APPLICATION_JSON)
+    OCSMessage<Object> deleteAppPassword(@HeaderParam("Authorization") String authorization);
 
     /**
      * Rotates an app password.
@@ -139,7 +139,7 @@ public interface NextcloudRestClient {
      */
     @POST
     @Path("/ocs/v2.php/core/apppassword/rotate")
-    @Produces(MediaType.APPLICATION_XML)
+    @Produces(MediaType.APPLICATION_JSON)
     OCSMessage<GetAppPasswordResult> rotateAppPassword(@HeaderParam("Authorization") String authorization);
 
     @RegisterForReflection

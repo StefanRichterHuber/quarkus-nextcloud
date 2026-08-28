@@ -1,6 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,8 +56,8 @@ public class NextcloudUserInfoTest {
         assertEquals(user, creds.loginName());
 
         // Check if the app password can be used
-        Executor exec = new CredentialsAwareRequestScopedExecutor(Executors.newFixedThreadPool(4), creds);
-        CompletableFuture<Boolean> result = CompletableFuture.supplyAsync(() -> {
+        final Executor exec = new CredentialsAwareRequestScopedExecutor(Executors.newFixedThreadPool(4), creds);
+        final CompletableFuture<Boolean> result = CompletableFuture.supplyAsync(() -> {
 
             if (!authProvider.getUser().equals(creds.loginName())) {
                 return false;
@@ -72,5 +73,10 @@ public class NextcloudUserInfoTest {
             return true;
         }, exec);
         assertTrue(result.join());
+
+        assertTrue(userService.deleteAppPassword(creds));
+
+        assertFalse(userService.deleteAppPassword(creds.withSecret("testvalue")));
+
     }
 }

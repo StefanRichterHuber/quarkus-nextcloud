@@ -171,7 +171,7 @@ public class NextcloudLoginService {
      * @param appPassword Nextcloud password
      * @param server      Nextcloud server
      */
-    public boolean deleteUserAccount(String user, String appPassword, String server) {
+    public boolean deleteUserPassword(String user, String appPassword, String server) {
         final NextcloudLoginFlowRestClient loginFlowClient = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(URI.create(server))
                 .followRedirects(true)
@@ -200,6 +200,6 @@ public class NextcloudLoginService {
      * @param credentials Nextcloud user credentials
      */
     public boolean deleteUserAccount(NextcloudUserCredentials credentials) {
-        return deleteUserAccount(credentials.loginName(), credentials.secret(), credentials.server());
+        return deleteUserPassword(credentials.loginName(), credentials.secret(), credentials.server());
     }
 }
