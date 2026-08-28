@@ -5,14 +5,22 @@ import java.security.Principal;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.poi.ss.formula.functions.T;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.quarkus.security.credential.Credential;
+import io.quarkus.security.credential.PasswordCredential;
+import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.core.SecurityContext;
@@ -69,13 +77,21 @@ public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityCont
         if (NextcloudUserCredentials.class.isAssignableFrom(credentialType)) {
             return (T) this.credentials;
         }
+        if (this.credentials.mode() == Mode.OIDC_TOKEN && TokenCredential.class.isAssignableFrom(credentialType)) {
+            return (T) new TokenCredential(this.credentials.secret(), "Bearer");
+        }
+        if ((this.credentials.mode() == Mode.APP_PASSWORD || this.credentials.mode() == Mode.EXAPP_API)
+                && PasswordCredential.class.isAssignableFrom(credentialType)) {
+            return (T) new PasswordCredential(this.credentials.secret().toCharArray());
+        }
         return null;
     }
 
     @Override
     public Set<Credential> getCredentials() {
         if (this.credentials != null) {
-            return Set.of(this.credentials);
+            return Stream.of(getCredential(NextcloudUserCredentials.class), getCredential(TokenCredential.class),
+                    getCredential(PasswordCredential.class)).filter(Objects::nonNull).collect(Collectors.toSet());
         }
         return Set.of();
     }

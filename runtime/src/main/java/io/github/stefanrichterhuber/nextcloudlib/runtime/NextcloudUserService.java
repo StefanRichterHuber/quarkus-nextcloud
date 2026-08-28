@@ -117,8 +117,8 @@ public class NextcloudUserService {
      * @return Credentials
      */
     public Optional<NextcloudUserCredentials> getAppPassword(String applicationName) {
-        if (applicationName == null) {
-            return Optional.empty();
+        if (applicationName == null || applicationName.isBlank()) {
+            throw new IllegalArgumentException("applicationName must not be null or empty");
         }
 
         final NextcloudRestClient client = QuarkusRestClientBuilder.newBuilder()
