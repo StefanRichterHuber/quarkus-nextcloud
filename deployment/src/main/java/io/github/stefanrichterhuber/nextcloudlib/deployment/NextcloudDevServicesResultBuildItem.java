@@ -35,7 +35,6 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
 import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.runtime.LaunchMode;
-import io.smallrye.config.SmallRyeConfig;
 
 /**
  * Build-step processor that starts a Nextcloud Testcontainers instance as a
@@ -310,14 +309,11 @@ public class NextcloudDevServicesResultBuildItem {
         result.put(NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY, clientId);
         result.put(NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY, clientSecret);
 
-        List<String> urls = new ArrayList<>();
+        final List<String> urls = new ArrayList<>();
         urls.add(redirectUri);
         urls.addAll(redirectURIs);
 
-        // TODO resolve ports
-        // TOOD all to one list?
-
-        List<String> command = new ArrayList<>();
+        final List<String> command = new ArrayList<>();
         command.addAll(
                 List.of("oidc:create",
                         "--client_id=" + clientId,

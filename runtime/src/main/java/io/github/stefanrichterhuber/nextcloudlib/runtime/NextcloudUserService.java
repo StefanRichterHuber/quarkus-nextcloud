@@ -6,8 +6,10 @@ import java.util.Optional;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudSecurityIdentity;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient.GetAppPasswordResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -94,9 +96,39 @@ public class NextcloudUserService {
      * 
      * @param user        user
      * @param credentials credentials
-     * @return
+     * @return Security Identity
      */
     public SecurityIdentity getSecurityIdentity(NextcloudUser user, NextcloudUserCredentials credentials) {
         return new NextcloudSecurityIdentity(user, credentials, null);
+    }
+
+    /**
+     * Creates an app password for the current user
+     * 
+     * @param applicationName Name of this application (shown in the app password
+     *                        settings), Required
+     * @return Credentials
+     */
+    public Optional<NextcloudUserCredentials> getAppPassword(String applicationName) {
+        if (applicationName == null) {
+            return Optional.empty();
+        }
+
+        final NextcloudRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudRestClient.class);
+
+        final OCSMessage<GetAppPasswordResult> result = client.getAppPassword(applicationName);
+        if (result.isOk()) {
+            final String secret = result.ocs().data().apppassword();
+            final String user = authProvider.getUser();
+            final String server = authProvider.getServer();
+
+            return Optional.of(new NextcloudUserCredentials(user, secret, server, Mode.APP_PASSWORD));
+        } else {
+            return Optional.empty();
+        }
+
     }
 }

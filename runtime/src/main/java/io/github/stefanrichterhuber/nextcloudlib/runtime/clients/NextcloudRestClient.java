@@ -10,8 +10,11 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -99,4 +102,63 @@ public interface NextcloudRestClient {
     @Path("remote.php/dav/comments/{type}/{objectId}")
     void addComment(@PathParam("type") String type, @PathParam("objectId") String objectId,
             AddCommentRequest request);
+
+    @RegisterForReflection
+    public record GetAppPasswordResult(String apppassword) {
+
+    }
+
+    /**
+     * Creates a new AppPassword
+     * 
+     * @param userAgent User Agent (necessary to identify the app password within
+     *                  the nextcloud app)
+     * @return
+     */
+    @Path("/ocs/v2.php/core/getapppassword")
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    OCSMessage<GetAppPasswordResult> getAppPassword(@HeaderParam("User-Agent") String userAgent);
+
+    /**
+     * Removes an app password.
+     * 
+     * @param authorization header: Basic base64_encode(username:app_password)
+     * @return
+     */
+    @DELETE
+    @Path("/ocs/v2.php/core/apppassword")
+    @Produces(MediaType.APPLICATION_XML)
+    OCSMessage<String> deleteAppPassword(@HeaderParam("Authorization") String authorization);
+
+    /**
+     * Rotates an app password.
+     * 
+     * @param authorization header: Basic base64_encode(username:app_password)
+     * @return
+     */
+    @POST
+    @Path("/ocs/v2.php/core/apppassword/rotate")
+    @Produces(MediaType.APPLICATION_XML)
+    OCSMessage<GetAppPasswordResult> rotateAppPassword(@HeaderParam("Authorization") String authorization);
+
+    @RegisterForReflection
+    record ConfirmAppPasswordRequest(String password) {
+    }
+
+    @RegisterForReflection
+    record ConfirmAppPasswordResponse(Integer lastLogin) {
+    }
+
+    /**
+     * Confirms an app password
+     * 
+     * @param request Request with the app password to configm
+     * @return
+     */
+    @Path("/ocs/v2.php/core/apppassword/confirm")
+    @PUT
+    @Produces(MediaType.APPLICATION_JSON)
+    OCSMessage<ConfirmAppPasswordResponse> confirmAppPassword(ConfirmAppPasswordRequest request);
+
 }
