@@ -2,7 +2,6 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime;
 
 import java.net.URI;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,6 +15,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginF
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient.InitiateLoginFlowV2Response;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient.NextcloudAppCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -32,6 +32,9 @@ public class NextcloudLoginService {
 
     @Inject
     Logger log;
+
+    @Inject
+    NextcloudUserService userService;
 
     /**
      * Results of the login flow initiation, containing the URL the user has to
@@ -163,32 +166,17 @@ public class NextcloudLoginService {
 
     /**
      * Deletes an App password
-     * <br>
-     * Always returns true, since 'If a non 200 status code is returned the client
-     * should still proceed with removing the account.'
      * 
      * @param user        Nextcloud user
      * @param appPassword Nextcloud password
      * @param server      Nextcloud server
+     * @deprecated Use
+     *             {@link NextcloudUserService#deleteAppPassword(NextcloudUserCredentials)}
+     *             instead
      */
+    @Deprecated
     public boolean deleteUserPassword(String user, String appPassword, String server) {
-        final NextcloudLoginFlowRestClient loginFlowClient = QuarkusRestClientBuilder.newBuilder()
-                .baseUri(URI.create(server))
-                .followRedirects(true)
-                .build(NextcloudLoginFlowRestClient.class);
-
-        final String valueToEncode = user + ":" + appPassword;
-        final String authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
-
-        final Response r = loginFlowClient.deleteAppPassword(authHeader);
-        if (r.getStatus() == 200) {
-            log.infof("Successfully deleted app password for user %s", user);
-        } else {
-            log.errorf("Failed to deleted app password for user %s -> consider account deleted anyway", user);
-        }
-        // If a non 200 status code is returned the client should still proceed with
-        // removing the account.
-        return true;
+        return deleteUserPassword(new NextcloudUserCredentials(user, appPassword, server, Mode.APP_PASSWORD));
     }
 
     /**
@@ -198,8 +186,28 @@ public class NextcloudLoginService {
      * should still proceed with removing the account.'
      * 
      * @param credentials Nextcloud user credentials
+     * @deprecated Use
+     *             {@link NextcloudUserService#deleteAppPassword(NextcloudUserCredentials)}
+     *             instead
      */
+    @Deprecated
     public boolean deleteUserAccount(NextcloudUserCredentials credentials) {
-        return deleteUserPassword(credentials.loginName(), credentials.secret(), credentials.server());
+        return deleteUserPassword(credentials);
+    }
+
+    /**
+     * Deletes an App password on the configured server
+     * <br>
+     * Always returns true, since 'If a non 200 status code is returned the client
+     * should still proceed with removing the account.'
+     * 
+     * @param credentials Nextcloud user credentials
+     * @deprecated Use
+     *             {@link NextcloudUserService#deleteAppPassword(NextcloudUserCredentials)}
+     *             instead
+     */
+    @Deprecated
+    public boolean deleteUserPassword(NextcloudUserCredentials credentials) {
+        return this.userService.deleteAppPassword(credentials);
     }
 }
