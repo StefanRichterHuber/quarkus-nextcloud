@@ -29,6 +29,8 @@ public class NextcloudAPIClientHeaders implements ClientHeadersFactory {
     public MultivaluedMap<String, String> update(MultivaluedMap<String, String> incomingHeaders,
             MultivaluedMap<String, String> clientOutgoingHeaders) {
 
+        // Ensure manually set Authentication Headers(to delete / tests an app password
+        // for example are higher priorized than global creds)
         final MultivaluedMap<String, String> generated = provider.getCredentials().getRequiredHeaders();
         final MultivaluedMap<String, String> result = new MultivaluedHashMap<>();
         result.putAll(generated);

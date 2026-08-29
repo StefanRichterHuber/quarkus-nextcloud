@@ -5,6 +5,7 @@ import org.eclipse.microprofile.rest.client.ext.ClientHeadersFactory;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 /**
@@ -27,7 +28,12 @@ public class NextcloudAPIAdminClientHeaders implements ClientHeadersFactory {
     @Override
     public MultivaluedMap<String, String> update(MultivaluedMap<String, String> incomingHeaders,
             MultivaluedMap<String, String> clientOutgoingHeaders) {
-        final MultivaluedMap<String, String> result = provider.getCredentials().getRequiredHeaders();
+        // Ensure manually set Authentication Headers(to delete / tests an app password
+        // for example are higher priorized than global creds)
+        final MultivaluedMap<String, String> generated = provider.getCredentials().getRequiredHeaders();
+        final MultivaluedMap<String, String> result = new MultivaluedHashMap<>();
+        result.putAll(generated);
+        result.putAll(clientOutgoingHeaders);
         return result;
     }
 }
