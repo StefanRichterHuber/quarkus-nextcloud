@@ -24,6 +24,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
 
 /**
+ * Service to list / add / remove comments to Nextcloud files
+ * 
  * @see <a href=
  *      "https://docs.nextcloud.com/server/stable/developer_manual/client_apis/WebDAV/comments.html">Nextcloud
  *      dev manual</a>
