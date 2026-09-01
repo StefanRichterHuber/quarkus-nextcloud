@@ -30,7 +30,9 @@ import jakarta.ws.rs.core.Response;
  * Provides access to ExApp config, notifications, UI registration, logging,
  * and lifecycle management.
  *
- * @see <a href="https://cloud-py-api.github.io/app_api/tech_details/api/">AppAPI REST API docs</a>
+ * @see <a href=
+ *      "https://cloud-py-api.github.io/app_api/tech_details/api/">AppAPI REST
+ *      API docs</a>
  */
 @Path("/")
 @RegisterClientHeaders(NextcloudAPIClientHeaders.class)
@@ -70,6 +72,12 @@ public interface ExAppApiRestClient {
 
     /**
      * Represents a single ExApp configuration or preference key-value entry.
+     * 
+     * @param configKey   key of the config property
+     * @param configValue value of the config property
+     * @param id          Id of the config property
+     * @param appId       Application id of the config property
+     * @param sensitive   Is this a sensitive config item
      */
     public static record ExAppConfigValue(
             @JsonProperty("configkey") String configKey,
@@ -103,6 +111,8 @@ public interface ExAppApiRestClient {
 
     /**
      * Request body for bulk config-value retrieval by key names.
+     * 
+     * @param configKeys List of config keys to retrieve
      */
     public static record AppConfigValueRequest(List<String> configKeys) {
         /**
@@ -253,7 +263,8 @@ public interface ExAppApiRestClient {
          * Creates a listener registration filtered to the given sub-types.
          *
          * @param actionHandler route path of the event handler endpoint
-         * @param eventSubtypes Nextcloud node event sub-type identifiers to subscribe to
+         * @param eventSubtypes Nextcloud node event sub-type identifiers to subscribe
+         *                      to
          * @return a new listener registration
          */
         public static RegisterEventListener create(String actionHandler,
@@ -357,7 +368,9 @@ public interface ExAppApiRestClient {
      *               per-user preferences
      * @param value  the key-value pair to store
      * @return an OCS response wrapping the stored config entry
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig
+     *      API</a>
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -371,7 +384,9 @@ public interface ExAppApiRestClient {
      *                per-user preferences
      * @param request list of config key names to retrieve
      * @return an OCS response wrapping the matching config entries
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig
+     *      API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -387,7 +402,9 @@ public interface ExAppApiRestClient {
      *               per-user preferences
      * @param value  the keys to delete
      * @return an OCS response with the number of deleted entries
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/appconfig.html">AppConfig
+     *      API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -398,9 +415,12 @@ public interface ExAppApiRestClient {
     /**
      * Returns a list of installed ExApps.
      *
-     * @param list {@code enabled} to list only enabled apps, {@code all} for all apps
+     * @param list {@code enabled} to list only enabled apps, {@code all} for all
+     *             apps
      * @return list of installed ExApp summaries
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/exapp.html">ExApp API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/exapp.html">ExApp
+     *      API</a>
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -411,7 +431,9 @@ public interface ExAppApiRestClient {
      * Returns a list of Nextcloud user IDs accessible to this ExApp.
      *
      * @return an OCS response wrapping the user list
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/utils.html">Utils API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/utils.html">Utils
+     *      API</a>
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -423,7 +445,9 @@ public interface ExAppApiRestClient {
      *
      * @param request the menu entry definition
      * @return the HTTP response from the AppAPI
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files Actions Menu API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files
+     *      Actions Menu API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -436,7 +460,9 @@ public interface ExAppApiRestClient {
      *
      * @param request identifies the menu entry to remove by name
      * @return the HTTP response from the AppAPI
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files Actions Menu API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/fileactionsmenu.html">Files
+     *      Actions Menu API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -449,7 +475,9 @@ public interface ExAppApiRestClient {
      *
      * @param request the top-menu entry definition
      * @return the HTTP response from the AppAPI
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top Menu API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top
+     *      Menu API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -462,7 +490,9 @@ public interface ExAppApiRestClient {
      *
      * @param request identifies the menu entry to remove by name
      * @return the HTTP response from the AppAPI
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top Menu API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/topmenu.html">Top
+     *      Menu API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
@@ -475,7 +505,9 @@ public interface ExAppApiRestClient {
      *
      * @param request the notification payload
      * @return an OCS response confirming delivery
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/notifications.html">Notifications API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/notifications.html">Notifications
+     *      API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -488,7 +520,9 @@ public interface ExAppApiRestClient {
      *
      * @param log the log entry including level and message
      * @return an OCS response confirming the log entry was written
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/logging.html">Logging API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/logging.html">Logging
+     *      API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -575,7 +609,9 @@ public interface ExAppApiRestClient {
      *
      * @param settings the settings form definition
      * @return an OCS response confirming the registration
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings
+     *      API</a>
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
@@ -588,7 +624,9 @@ public interface ExAppApiRestClient {
      *
      * @param req identifies the settings form to remove by its form ID
      * @return an OCS response confirming the removal
-     * @see <a href="https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings API</a>
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/developer_manual/exapp_development/tech_details/api/settings.html">Settings
+     *      API</a>
      */
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)

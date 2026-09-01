@@ -339,9 +339,9 @@ public class NextcloudFileService {
     }
 
     /**
-     * Returns a file by its <br>
-     * internal</br>
-     * path (could be the file itself, the file by its id or file version(s))
+     * Returns a file by its
+     * internal path (could be the file itself, the file by its id or file
+     * version(s))
      * 
      * @param target Internal target path
      * @return List of files found
