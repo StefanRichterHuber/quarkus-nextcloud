@@ -92,6 +92,12 @@ public interface NextcloudDevServicesConfig {
     @WithDefault("http://localhost:${quarkus.http.test-port:quarkus.http.port}/*")
     Optional<List<String>> oidcRedirectUrls();
 
+    /**
+     * Nextcloud app to install in the dev service to support advanced
+     * configurations
+     * 
+     * @return
+     */
     DefaultApps defaultApps();
 
     public interface DefaultApps {
