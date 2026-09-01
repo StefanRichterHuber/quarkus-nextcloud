@@ -91,4 +91,23 @@ public interface NextcloudDevServicesConfig {
      */
     @WithDefault("http://localhost:${quarkus.http.test-port:quarkus.http.port}/*")
     Optional<List<String>> oidcRedirectUrls();
+
+    DefaultApps defaultApps();
+
+    public interface DefaultApps {
+        @WithDefault("files_lock")
+        String filesLock();
+
+        @WithDefault("oidc")
+        String oidc();
+
+        @WithDefault("user_oidc")
+        String userOidc();
+
+        @WithDefault("app_api")
+        String appApi();
+
+        @WithDefault("webhook_listeners")
+        String webhookListeners();
+    }
 }

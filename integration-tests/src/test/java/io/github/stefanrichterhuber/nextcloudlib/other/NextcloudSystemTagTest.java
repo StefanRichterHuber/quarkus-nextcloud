@@ -1,5 +1,6 @@
-package io.github.stefanrichterhuber.nextcloudlib.files;
+package io.github.stefanrichterhuber.nextcloudlib.other;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,5 +66,27 @@ public class NextcloudSystemTagTest {
 
         List<SystemTag> fileTags = tagService.listSystemTagsOfFile(file);
         assertTrue(fileTags.contains(st));
+    }
+
+    @Test
+    public void removeSystemTagTest() throws IOException {
+        SystemTag st = tagService.addSystemTag("hello122", true, true, true);
+        assertNotNull(st);
+
+        fileService.createDirectories(ROOT_DIR);
+        String filename = ROOT_DIR + "/" + UUID.randomUUID().toString() + ".md";
+        fileService.uploadFile(filename, "text/markdown",
+                new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
+
+        NextcloudFile file = fileService.getFile(filename);
+
+        tagService.addTagToFile(file, st);
+
+        List<SystemTag> fileTags = tagService.listSystemTagsOfFile(file);
+        assertTrue(fileTags.contains(st));
+
+        tagService.removeTagFromFile(file, st);
+        List<SystemTag> fileTags2 = tagService.listSystemTagsOfFile(file);
+        assertFalse(fileTags2.contains(st));
     }
 }

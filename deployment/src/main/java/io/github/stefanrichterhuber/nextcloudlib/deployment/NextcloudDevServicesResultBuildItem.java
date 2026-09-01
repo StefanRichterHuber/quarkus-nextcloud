@@ -48,9 +48,6 @@ import io.quarkus.runtime.LaunchMode;
  * mode).
  */
 public class NextcloudDevServicesResultBuildItem {
-    public static final String NEXTCLOUD_APP_WEBHOOK_LISTENERS = "webhook_listeners";
-    public static final String NEXTCLOUD_APP_APP_API = "app_api";
-
     private static final String HOST_NAME_FOR_DOCKER_CONTAINER = "host.docker.internal";
     private static final String APP_API_DEFAULT_SECRET = "1234567890";
     private static final int SERVICE_PORT = 80;
@@ -70,6 +67,8 @@ public class NextcloudDevServicesResultBuildItem {
     public static final String NEXTCLOUD_OIDC_IDP_PROPERTY = "quarkus.oidc.auth-server-url";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
     public static final String NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY = "quarkus.oidc.credentials.secret"; // QUARKUS_OIDC_CREDENTIALS_SECRET
+
+    public static final String NEXTCLOUD_FILE_LOCK_ENABLED_PROPERTY = "nextcloud.file-lock-enabled";
 
     private static final String FEATURE_NAME = "nextcloud-dev-service";
     private static final String FEATURE_DESCRIPTION = "Local Nextcloud instance for development and testing purposes. This is only intended to be used in development mode and should not be used in production! The properties "
@@ -126,21 +125,30 @@ public class NextcloudDevServicesResultBuildItem {
         final String password = serviceConfig.password().orElse(ADMIN_PASSWORD);
         final int logLevel = serviceConfig.logLevel();
         final Set<String> apps = new HashSet<>(serviceConfig.apps().orElse(List.of()));
-        final Boolean appApiSupport = serviceConfig.enableExApp() || exAppBuildConfig.enabled();
-        final Boolean webhookWorkerEnabled = serviceConfig.enableWebhookWorker();
+        final boolean appApiSupport = serviceConfig.enableExApp() || exAppBuildConfig.enabled();
+        final boolean webhookWorkerEnabled = serviceConfig.enableWebhookWorker();
         final NextcloudContainer container = new NextcloudContainer(image, user, password);
+        final boolean fileLocksEnabled = ConfigProvider.getConfig()
+                .getOptionalValue(NEXTCLOUD_FILE_LOCK_ENABLED_PROPERTY, Boolean.class)
+                .orElse(false);
+        final boolean webHookSupport = !handlers.isEmpty()
+                || apps.contains(serviceConfig.defaultApps().webhookListeners());
+
+        if (fileLocksEnabled) {
+            apps.add(serviceConfig.defaultApps().filesLock());
+        }
 
         if (appApiSupport) {
-            apps.add(NEXTCLOUD_APP_APP_API);
+            apps.add(serviceConfig.defaultApps().appApi());
         }
         if (!appApiSupport && serviceConfig.enableOidc()) {
-            apps.add("oidc");
-            apps.add("user_oidc");
+            apps.add(serviceConfig.defaultApps().oidc());
+            apps.add(serviceConfig.defaultApps().userOidc());
 
         }
         // If event handlers are present, enable webhook listeners.
-        if (!handlers.isEmpty()) {
-            apps.add(NEXTCLOUD_APP_WEBHOOK_LISTENERS);
+        if (webHookSupport) {
+            apps.add(serviceConfig.defaultApps().webhookListeners());
         }
 
         container.withApps(apps);
@@ -168,7 +176,7 @@ public class NextcloudDevServicesResultBuildItem {
         configOverrides.put(NEXTCLOUD_ADMIN_USER_PROPERTY, user);
         configOverrides.put(NEXTCLOUD_ADMIN_PASSWORD_PROPERTY, password);
 
-        if (apps.contains(NEXTCLOUD_APP_WEBHOOK_LISTENERS)) {
+        if (webHookSupport) {
             configOverrides = installWebhookSupport(container, configOverrides, webhookWorkerEnabled);
         }
         if (appApiSupport) {

@@ -30,6 +30,8 @@ import jakarta.ws.rs.WebApplicationException;
  */
 @ApplicationScoped
 public class NextcloudCommentService {
+    private static final String COMMENT_TYPE_FILES = "files";
+
     @Inject
     Logger logger;
 
@@ -50,9 +52,10 @@ public class NextcloudCommentService {
         if (file == null) {
             return List.of();
         }
-        String type = "files";
-        int resourceId = file.fileId();
-        String url = String.format("%s/remote.php/dav/comments/%s/%d", authProvider.getServer(), type, resourceId);
+        final String type = COMMENT_TYPE_FILES;
+        final int resourceId = file.fileId();
+        final String url = String.format("%s/remote.php/dav/comments/%s/%d", authProvider.getServer(), type,
+                resourceId);
 
         final Set<QName> props = Set.of(
                 new QName("http://owncloud.org/ns", "id", "oc"),
@@ -68,10 +71,31 @@ public class NextcloudCommentService {
             if (resource.getCustomProps().get("id") == null || resource.getCustomProps().get("id").isBlank()) {
                 continue;
             }
-            comments.add(Comment.fromDavResource(resource));
+            comments.add(Comment.fromDavResource(resource, type, resourceId));
         }
 
         return comments;
+    }
+
+    /**
+     * Deletes a comment from a file
+     * 
+     * @param comment Comment to delete
+     * @throws IOException
+     */
+    public void deleteComment(Comment comment) throws IOException {
+        if (comment == null) {
+            throw new NullPointerException("comment must not be null");
+        }
+        // "/remote.php/dav/comments/files/77/1"
+        final String type = comment.type();
+        final int fileId = comment.fileId();
+        final int commentId = comment.id();
+        final String url = String.format("%s/remote.php/dav/comments/%s/%d/%d", authProvider.getServer(), type, fileId,
+                commentId);
+
+        sardine.delete(url);
+
     }
 
     /**
@@ -83,17 +107,17 @@ public class NextcloudCommentService {
      */
     public void addCommentToFile(NextcloudFile file, String comment) throws IOException {
         if (file == null) {
-            throw new IOException("File to add comment to must be given");
+            throw new NullPointerException("File to add comment to must be given");
         }
         if (comment == null || comment.isBlank()) {
-            throw new IOException("Comment to add to file must not be empty or null");
+            throw new NullPointerException("Comment to add to file must not be empty or null");
         }
         final NextcloudRestClient client = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(URI.create(authProvider.getServer()))
                 .followRedirects(true)
                 .build(NextcloudRestClient.class);
 
-        final String type = "files";
+        final String type = COMMENT_TYPE_FILES;
         final String resourceId = file.fileId().toString();
         try {
             client.addComment(type, resourceId,

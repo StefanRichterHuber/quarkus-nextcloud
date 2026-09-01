@@ -89,6 +89,12 @@ Add the following Maven dependency to your `pom.xml`. Replace `[current version]
 
 ## Features
 
+### Global Configuration
+
+| Property | Description |
+| --- | --- |
+| `nextcloud.file-lock-enabled` | If the Nextcloud app `files_lock` is enabled, set this to `true` to enable the use of lock-tokens for files (defaults to `false`). When enabled, the dev service installs the required app `files_lock` |
+
 ### Authentication
 
 Provide a `RequestScoped` implementation of
@@ -139,6 +145,8 @@ The following CDI services are provided for convenient access to Nextcloud modul
 Provides a pre-configured, ready-to-use Nextcloud container with an embedded SQLite database.
 The dev service is automatically started in dev and test mode and skipped when `nextcloud.url`
 is already set.
+
+If the property `nextcloud.file-lock-enabled` is set to `true`, the required app `files_lock` will be installed.
 
 | Property | Default | Description |
 | --- | --- | --- |
