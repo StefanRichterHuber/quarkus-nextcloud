@@ -16,7 +16,8 @@ public class ExAppTestProfile implements QuarkusTestProfile {
                 "nextcloud.oidc.enabled-for-users", "false", //
                 "nextcloud.oidc.enabled-for-admins", "false", //
                 "nextcloud.dev-services.enable-oidc", "false", //
-                "nextcloud.webhook.build.auto-discovery-enabled", "false"//
+                "nextcloud.webhook.build.auto-discovery-enabled", "false", //
+                "nextcloud.file-lock-enabled", "true" //
         );
     }
 

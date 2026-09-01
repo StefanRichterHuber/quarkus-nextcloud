@@ -9,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import ezvcard.VCard;
+import ezvcard.parameter.EmailType;
 import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService.Addressbook;
@@ -25,14 +26,40 @@ public class NextcloudContactTest {
 
     @Test
     public void fetchAddressBooks() throws IOException {
-        List<Addressbook> result = service.listAddressBooks();
+        List<Addressbook> addressBook = service.listAddressBooks();
 
-        assertNotNull(result);
-        assertFalse(result.isEmpty());
+        assertNotNull(addressBook);
+        assertFalse(addressBook.isEmpty());
 
-        for (Addressbook addressbook : result) {
-            List<VCard> card = service.fetchContacts(addressbook);
-            assertNotNull(card);
-        }
+        Addressbook contacts = addressBook.stream().filter(a -> a.name().equalsIgnoreCase("contacts")).findFirst()
+                .orElse(null);
+        assertNotNull(contacts);
+
+    }
+
+    @Test
+    public void createDeleteContact() throws IOException {
+        List<Addressbook> addressBook = service.listAddressBooks();
+
+        assertNotNull(addressBook);
+        assertFalse(addressBook.isEmpty());
+
+        Addressbook contacts = addressBook.stream().filter(a -> a.name().equalsIgnoreCase("contacts")).findFirst()
+                .orElse(null);
+        assertNotNull(contacts);
+
+        VCard card = new VCard();
+        card.setNickname("Kevin");
+        card.addEmail("kevin@example.com", EmailType.HOME);
+
+        String uid = service.createContact(contacts, card);
+        assertNotNull(uid);
+
+        List<VCard> cards = service.fetchContacts(contacts);
+        VCard createdCard = cards.stream()
+                .filter(c -> c.getEmails().stream().anyMatch(m -> m.getValue().equals("kevin@example.com"))).findFirst()
+                .orElse(null);
+        assertNotNull(createdCard);
+
     }
 }

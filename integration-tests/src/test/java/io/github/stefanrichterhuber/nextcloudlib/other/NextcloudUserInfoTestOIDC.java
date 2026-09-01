@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudlib.files;
+package io.github.stefanrichterhuber.nextcloudlib.other;
 
 import io.github.stefanrichterhuber.nextcloudlib.profiles.OIDCTestProfile;
 import io.quarkus.test.junit.QuarkusTest;

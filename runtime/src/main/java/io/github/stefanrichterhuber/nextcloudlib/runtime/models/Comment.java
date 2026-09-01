@@ -14,10 +14,14 @@ import com.github.sardine.DavResource;
  * @param actorId          ID of the commenter
  * @param actorDisplayName Display name of the commenter
  * @param creationDateTime Time of the comment creation
+ * @param type             Type of resources this comment is attached to
+ *                         (usually 'files')
+ * @param fileId           ID of the file this comment is attached to
+ * 
  */
-public record Comment(Integer id, String message, String actorId,
+public record Comment(int id, String message, String actorId,
         String actorDisplayName,
-        Date creationDateTime) {
+        Date creationDateTime, String type, int fileId) {
 
     /**
      * Creates a comment object from a DavResource
@@ -25,7 +29,7 @@ public record Comment(Integer id, String message, String actorId,
      * @param resource DavResource to parse
      * @return Comment object
      */
-    public static Comment fromDavResource(DavResource resource) {
+    public static Comment fromDavResource(DavResource resource, String type, int fileId) {
         if (resource == null) {
             return null;
         }
@@ -40,6 +44,6 @@ public record Comment(Integer id, String message, String actorId,
                     DateTimeFormatter.RFC_1123_DATE_TIME);
             creationDateTime = Date.from(creationDateTimeZdt.toInstant());
         }
-        return new Comment(id, message, actorId, actorDisplayName, creationDateTime);
+        return new Comment(id, message, actorId, actorDisplayName, creationDateTime, type, fileId);
     }
 }

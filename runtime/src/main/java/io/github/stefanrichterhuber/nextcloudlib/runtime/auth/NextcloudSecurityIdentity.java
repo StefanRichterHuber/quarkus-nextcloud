@@ -80,7 +80,7 @@ public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityCont
         if (this.credentials.mode() == Mode.OIDC_TOKEN && TokenCredential.class.isAssignableFrom(credentialType)) {
             return (T) new TokenCredential(this.credentials.secret(), "Bearer");
         }
-        if ((this.credentials.mode() == Mode.APP_PASSWORD || this.credentials.mode() == Mode.EXAPP_API)
+        if ((this.credentials.mode() == Mode.APP_PASSWORD)
                 && PasswordCredential.class.isAssignableFrom(credentialType)) {
             return (T) new PasswordCredential(this.credentials.secret().toCharArray());
         }

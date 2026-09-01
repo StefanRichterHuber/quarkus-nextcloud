@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
@@ -26,7 +27,8 @@ public class SardineDataSource implements DataSource {
      */
     private String contentType;
     /**
-     * Path of the file
+     * Absolute url of the target file (e.g.
+     * 'https://nextcloud.example.com/remote.php/dav/files/admin/documents/test.txt')
      */
     private final String file;
 
@@ -34,7 +36,8 @@ public class SardineDataSource implements DataSource {
      * Creates a new {@link SardineDataSource}
      * 
      * @param sardine     {@link Sardine} instance to access WebDav server
-     * @param targetFile  Path of the file
+     * @param targetFile  Absolute url of the target file (e.g.
+     *                    'https://nextcloud.example.com/remote.php/dav/files/admin/documents/test.txt')
      * @param contentType (Expected) Content type of the file. Can be null, in this
      *                    case {@link #getContentType()} lazily fetches the content
      *                    type on first access.
@@ -75,6 +78,16 @@ public class SardineDataSource implements DataSource {
         return sardine.get(file);
     }
 
+    /**
+     * Absolute url of the target file (e.g.
+     * 'https://nextcloud.example.com/remote.php/dav/files/admin/documents/test.txt')
+     * 
+     * @return
+     */
+    public String getURL() {
+        return this.file;
+    }
+
     @Override
     public String getContentType() {
         if (contentType == null) {
@@ -91,5 +104,22 @@ public class SardineDataSource implements DataSource {
             }
         }
         return contentType;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == this) {
+            return true;
+        }
+        if (other instanceof SardineDataSource ds) {
+            return Objects.equals(this.contentType, ds.contentType) &&
+                    Objects.equals(this.file, ds.file);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.contentType, this.file);
     }
 }

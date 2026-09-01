@@ -14,12 +14,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.transform.sax.SAXSource;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.jboss.logging.Logger;
 import org.xml.sax.InputSource;
@@ -66,54 +68,195 @@ public class NextcloudFileService {
     @Inject
     NextcloudAuthProvider authProvider;
 
+    /**
+     * Requires files_lock app
+     */
+    @Inject
+    @ConfigProperty(name = "nextcloud.file-lock-enabled", defaultValue = "false")
+    boolean lockEnabled = false;
+
+    /**
+     * Represents a locked Nextcloud file. As an AutoCloseable one can easily use
+     * the
+     * file with the given helper methods for modification and unlock it
+     * afterwards
+     * NextCloudFileLock
+     */
     public class NextCloudFileLock implements AutoCloseable {
-        private final String token;
+        private String token;
         private final String url;
+        private NextcloudFile file = null;
 
         private NextCloudFileLock(String url, String token) {
             this.token = token;
             this.url = url;
+            this.file = null;
 
         }
 
         @Override
         public void close() {
             try {
-                NextcloudFileService.this.sardine.unlock(url, token);
+                unlock();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
+        /**
+         * Unlocks this file
+         * 
+         * @throws IOException
+         */
+        public void unlock() throws IOException {
+            if (token != null) {
+                NextcloudFileService.this.sardine.unlock(url, token);
+                token = null;
+            }
+        }
+
+        /**
+         * Lock token
+         */
         public String token() {
             return token;
         }
 
+        /**
+         * URL of this file
+         * 
+         * @return
+         */
         public String url() {
             return url;
         }
 
-        public NextcloudFile getFile() throws IOException {
-            return NextcloudFileService.this.getFile(url());
+        /**
+         * Etag of this file
+         * 
+         * @return
+         * @throws IOException
+         */
+        public String etag() throws IOException {
+            return file().etag();
+        }
+
+        /**
+         * File locked by this lock
+         * 
+         * @return
+         * @throws IOException
+         */
+        public NextcloudFile file() throws IOException {
+            if (file == null) {
+                file = NextcloudFileService.this.getFile(url());
+            }
+            return file;
+        }
+
+        /**
+         * Uploads new content into this locked file
+         * 
+         * @param contentType Type of the content to upload (might be null for
+         *                    auto-detect)
+         * @param content     Content to upload
+         * 
+         * @throws IOException
+         */
+        public void uploadContent(String contentType, @Nonnull InputStream content) throws IOException {
+            final String etag = etag();
+            final String lockTocken = token();
+            NextcloudFileService.this.uploadFile(url, contentType, content, etag,
+                    lockTocken);
+            // Etag becomes invalid, refetch file for current etag!
+            this.file = null;
+        }
+
+        /**
+         * Uploads new content into this locked file
+         * 
+         * @param content Content to upload
+         * 
+         * @throws IOException
+         */
+        public void uploadContent(@Nonnull InputStream content) throws IOException {
+            uploadContent(null, content);
+        }
+
+        /**
+         * Deletes this file. This also unlocks the file!
+         * 
+         * @throws IOException
+         */
+        public void deleteFile() throws IOException {
+            final String etag = etag();
+            final String lockTocken = token();
+            NextcloudFileService.this.deleteFile(url, etag, lockTocken);
+            // File deleted, neither file handle nor token are any longer valid
+            file = null;
+            token = null;
+        }
+
+        /**
+         * Prepares moving this file one destination to the other. File id stays the
+         * same!
+         * 
+         * @throws IOException
+         * 
+         */
+        public FileMoveOperationBuilder moveFile() throws IOException {
+            return NextcloudFileService.this.moveFile().from(this);
+        }
+
+        /**
+         * Prepares coping this file one destination to the other. File id stays the
+         * same!
+         * 
+         * @throws IOException
+         * 
+         */
+        public FileMoveOperationBuilder copyFile() throws IOException {
+            return NextcloudFileService.this.copyFile().from(this);
         }
 
     }
 
     /**
-     * Get the sanitized WebDav file path for the given user and file
+     * Get the absolute WebDav URL for the given user and file<br>
+     * 
+     * <ul>
+     * <li>Absolute paths to files and file versions are passed through
+     * <li>relative-paths to dav (paths starting with '/remote.php/dav/') are
+     * prepended with the server url (e.g.
+     * '/remote.php/dav/files/admin/documents/test.txt' ->
+     * 'https://nextcloud.example.com/remote.php/dav/files/admin/documents/test.txt')
+     * <li>Empty / null paths are rewritten to the root folder of the current user:
+     * e.g. '' -> 'https://nextcloud.example.com/remote.php/dav/files/admin'
+     * <li>Any other path is treated as relative path to the root folder of the
+     * current user (e.g. '/documents/test.txt' ->
+     * 'https://nextcloud.example.com/remote.php/dav/files/admin/documents/test.txt')
+     * </ul>
+     * <br>
      * 
      * @param path Relative file path
-     * @return
+     * @return Absolute URL of the file
      */
-    private String getWebDavFilePath(String path) {
+    protected String getWebDavFilePath(String path) {
         final String user = this.getCurrentUser();
 
         if (path == null || path.isBlank()) {
+            // Empty path -> point to the root file folder
             final String target = String.format("%s/remote.php/dav/files/%s", authProvider.getServer(), user);
             return target;
-        } else if (path.startsWith(String.format("%s/remote.php/dav/files/%s", authProvider.getServer(), user))) {
+        } else if (path.startsWith(String.format("%s/remote.php/dav/files/", authProvider.getServer()))) {
+            // This is an absolute path to a file -> don't touch it
             return path;
         } else if (path.startsWith(String.format("%s/remote.php/dav/versions/", authProvider.getServer()))) {
+            // This is an absolut path to a file version -> don't touch it
+            return path;
+        } else if (path.startsWith("/remote.php/dav/")) {
+            // This is a relative path to the dav sub system -> prepend server url
+            path = authProvider.getServer() + path;
             return path;
         } else {
             // Replace leading /
@@ -205,7 +348,7 @@ public class NextcloudFileService {
      * @see <a href=
      *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/basic.html</a>
      */
-    private List<NextcloudFile> getFileByInternalPath(@Nonnull String target) throws IOException {
+    protected List<NextcloudFile> getFileByInternalPath(@Nonnull String target) throws IOException {
         final Set<QName> properties = Set.of( //
                 new QName("http://owncloud.org/ns", "fileid", "oc"), //
                 new QName("DAV:", "getetag", "d"), //
@@ -224,7 +367,7 @@ public class NextcloudFileService {
      * @param davResource
      * @return
      */
-    private NextcloudFile davResourceToNextCloudFile(@Nonnull DavResource davResource) {
+    protected NextcloudFile davResourceToNextCloudFile(@Nonnull DavResource davResource) {
         if (davResource != null) {
             final String user = this.getCurrentUser();
             final String etag = davResource.getEtag();
@@ -234,7 +377,7 @@ public class NextcloudFileService {
             final Integer fileId = Optional.ofNullable(davResource.getCustomProps().get("fileid"))
                     .filter(str -> !str.isBlank())
                     .map(Integer::parseInt).orElse(null);
-            final String path = String.format("%s%s", authProvider.getServer(), davResource.getHref().toString());
+            final String path = getWebDavFilePath(davResource.getHref().toString());
             final DataSource ds = new SardineDataSource(this.sardine, path, contentType);
 
             final String filePath = path.replace(getWebDavFilePath(null) + "/", "");
@@ -245,7 +388,37 @@ public class NextcloudFileService {
     }
 
     /**
-     * Returns all reviions of the file with the given path
+     * Returns all revisions of the given file
+     * 
+     * @param srcFile File to read revisions
+     * @return List of revisions as NextCloudFile
+     */
+    public List<NextcloudFile> listFileRevisions(@Nonnull NextcloudFile srcFile) throws IOException {
+        // For some strange reasone the latest file revision could not be downloaded
+        // from the list of revisions -> download by filename. Remove files with size -1
+        // (folder placeholders ?)
+        final List<NextcloudFile> result = listFileRevisions(srcFile.fileId()).stream()
+                .filter(f -> f.contentLength() >= 0).toList();
+        final Date latestRev = result.stream().filter(f -> f.modified() != null).map(f -> f.modified())
+                .max(Date::compareTo)
+                .orElse(null);
+        if (latestRev != null) {
+            return result.stream().map(file -> {
+                if (Objects.equals(file.modified(), latestRev)) {
+                    // Replace with latest file revision to ensure that the content is available for
+                    // the latest revision
+                    return srcFile;
+                } else {
+                    return (NextcloudFile) file;
+                }
+            }).toList();
+        } else {
+            return result;
+        }
+    }
+
+    /**
+     * Returns all revisions of the file with the given path
      * 
      * @param path Path of the file
      * @return List of revisions as NextCloudFile
@@ -253,25 +426,7 @@ public class NextcloudFileService {
     public List<NextcloudFile> listFileRevisions(@Nonnull String path) throws IOException {
         final NextcloudFile latest = getFile(path);
         if (latest != null) {
-            // For some strange reasone the latest file revision could not be downloaded
-            // from the list of revisions -> download by filename
-            List<NextcloudFile> result = listFileRevisions(latest.fileId());
-            final Date latestRev = result.stream().filter(f -> f.modified() != null).map(f -> f.modified())
-                    .max(Date::compareTo)
-                    .orElse(null);
-            if (latestRev != null) {
-                return result.stream().map(file -> {
-                    if (Objects.equals(file.modified(), latestRev)) {
-                        // Replace with latest file revision to ensure that the content is available for
-                        // the latest revision
-                        return latest;
-                    } else {
-                        return (NextcloudFile) file;
-                    }
-                }).toList();
-            } else {
-                return result;
-            }
+            return listFileRevisions(latest);
         } else {
             return Collections.emptyList();
         }
@@ -619,21 +774,13 @@ public class NextcloudFileService {
      *                    handle this upload within an existing lock
      * @throws IOException
      */
-    @SuppressWarnings("unused")
     public void uploadFile(String path, @Nullable String contentType, @Nonnull InputStream content,
             @Nullable String etag,
             @Nullable String lockToken)
             throws IOException {
         final String url = getWebDavFilePath(path);
         final Map<String, String> headers = new HashMap<>();
-        if (etag != null) {
-            headers.put("If-Match", etag);
-        }
-        if (lockToken != null && false) {
-            // FIXME: Does not work currently with nextcloud
-            headers.put("If", String.format("</remote.php/dav/files/%s/%s> (<%s> [%s])", authProvider.getUser(), path,
-                    lockToken, etag));
-        }
+        headers.putAll(this.buildEtagAndLockHeader(url, etag, lockToken));
         if (contentType != null) {
             headers.put("Content-Type", contentType);
         }
@@ -676,13 +823,33 @@ public class NextcloudFileService {
             throws IOException {
         final String url = getWebDavFilePath(path);
         final Map<String, String> headers = new HashMap<>();
-        if (etag != null) {
+        headers.putAll(buildEtagAndLockHeader(url, etag, lockToken));
+        sardine.delete(url, headers);
+    }
+
+    /**
+     * Builds the necessary If-Match or If headers from etag / locktoken. See
+     * rfc4918
+     * 
+     * @param etag      Etag header, can be null
+     * @param lockToken Lock tocken, can be null
+     * @return Map containing the headers build. Might be empty but never null
+     */
+    protected Map<String, String> buildEtagAndLockHeader(String url, @Nullable String etag,
+            @Nullable String lockToken) {
+        final Map<String, String> headers = new HashMap<>();
+        final boolean withEtag = etag != null && !etag.isBlank();
+        final boolean withLock = lockEnabled() && lockToken != null && !lockToken.isBlank();
+        final String path = url; // url.substring(authProvider.getServer().length());
+        if (withEtag && !withLock) {
             headers.put("If-Match", etag);
+        } else if (withEtag && withLock) {
+            headers.put("If", String.format("<%s> (<%s> [%s])", path, lockToken, etag));
+        } else if (!withEtag && withLock) {
+            // Should be unlikely case
+            headers.put("If", String.format("<%s> (<%s>)", path, lockToken));
         }
-        if (lockToken != null) {
-            headers.put("If", String.format("(<%s>)", lockToken));
-        }
-        sardine.delete(url, null);
+        return headers;
     }
 
     /**
@@ -703,15 +870,224 @@ public class NextcloudFileService {
     }
 
     /**
-     * Moves a file from one destination to the other. File id stays the same!
-     * 
-     * @param path       Relative source path of the file (including filename!)
-     * @param targetPath Relative target path of the file (including filename!)
+     * Builder for a MOVE or COPY operation of a file
+     * FileMoveOperationBuilder
      */
-    public void moveFile(String path, String targetPath) throws IOException {
-        final String src = getWebDavFilePath(path);
-        final String target = getWebDavFilePath(targetPath);
-        sardine.move(src, target);
+    public class FileMoveOperationBuilder {
+        private enum Operation {
+            COPY, MOVE;
+        }
+
+        private FileMoveOperationBuilder(Operation op) {
+            this.op = op;
+        }
+
+        private final Operation op;
+        private String sourcePath = null;
+        private String targetPath = null;
+        private boolean overwrite = false;
+        private String sourceEtag = null;
+        private String targetEtag = null;
+        private String sourceLockToken = null;
+        private String targetLockToken = null;
+
+        /**
+         * Sets the source path of the operation
+         * 
+         * @param path Path to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder from(String path) {
+            this.sourcePath = path;
+            return this;
+        }
+
+        /**
+         * Sets the source file of the operation. Also sets the etag of the file!
+         * 
+         * @param file File to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder from(NextcloudFile file) {
+            this.sourcePath = file.path();
+            this.sourceEtag = file.etag();
+            return this;
+        }
+
+        /**
+         * Sets a locked file as the source of the operation. Also sets the etag and
+         * lock token of the file!
+         * 
+         * @param file File to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder from(NextCloudFileLock file) throws IOException {
+            this.sourcePath = file.url();
+            this.sourceEtag = file.etag();
+            this.sourceLockToken = file.token();
+            return this;
+        }
+
+        /**
+         * Sets the lock for the source file
+         * 
+         * @param etag      Etag of the source
+         * @param lockToken Lock token of the source file
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder withSourceLock(String etag, String lockToken) {
+            this.sourceEtag = etag;
+            this.sourceLockToken = lockToken;
+            return this;
+        }
+
+        /**
+         * Sets the etag for the source file
+         * 
+         * @param etag Etag of the source
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder withSourceEtag(String etag) {
+            return withSourceLock(etag, null);
+        }
+
+        /**
+         * Sets the target path of the operation
+         * 
+         * @param path Path to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder to(String path) {
+            this.targetPath = path;
+            return this;
+        }
+
+        /**
+         * Sets the target file of the operation. Also sets the etag of the file and
+         * enables overwrite!
+         * 
+         * @param file File to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder to(NextcloudFile file) {
+            this.targetPath = file.path();
+            this.targetEtag = file.etag();
+            this.overwrite = true;
+            return this;
+        }
+
+        /**
+         * Sets a locked file as the target of the operation. Also sets the etag and
+         * lock token of the file and enables overwrite!
+         * 
+         * @param file File to set
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder to(NextCloudFileLock file) throws IOException {
+            this.targetPath = file.url();
+            this.targetEtag = file.etag();
+            this.targetLockToken = file.token();
+            this.overwrite = true;
+            return this;
+        }
+
+        /**
+         * Sets the lock for the target file. Enables overwrite!
+         * 
+         * @param etag      Etag of the target
+         * @param lockToken Lock token of the target file
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder withTargetLock(String etag, String lockToken) {
+            this.targetEtag = etag;
+            this.targetLockToken = lockToken;
+            this.overwrite = true;
+            return this;
+        }
+
+        /**
+         * Sets the etag for the target file. Enables overwrite!
+         * 
+         * @param etag Etag of the target
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder withTargetEtag(String etag) {
+            return withTargetLock(etag, null);
+        }
+
+        /**
+         * Whether to overwrite the target if it exists
+         * 
+         * @param overwrite {@code true} to overwrite if the destination exists,
+         *                  {@code false} otherwise.
+         * @return This builder for method chaining
+         */
+        public FileMoveOperationBuilder withOverwrite(boolean overwrite) {
+            this.overwrite = overwrite;
+            return this;
+        }
+
+        /**
+         * Executes the configured MOVE or COPY operation
+         * 
+         * @throws IOException
+         */
+        public void execute() throws IOException {
+            if (sourcePath == null || sourcePath.isBlank()) {
+                throw new IllegalArgumentException("Source path must not be null or empty");
+            }
+            if (targetPath == null || targetPath.isBlank()) {
+                throw new IllegalArgumentException("Target path must not be null or empty");
+            }
+
+            final String src = getWebDavFilePath(sourcePath);
+            final String target = getWebDavFilePath(targetPath);
+            final Map<String, String> headers = new HashMap<>();
+
+            List<String> conditions = new ArrayList<>();
+            if (sourceEtag != null && !sourceEtag.isBlank()) {
+                if (lockEnabled() && sourceLockToken != null && !sourceLockToken.isBlank()) {
+                    conditions.add(String.format("<%s> (<%s> [%s])", src, sourceLockToken, sourceEtag));
+                } else {
+                    conditions.add(String.format("<%s> ([%s])", src, sourceEtag));
+                }
+            }
+            if (targetEtag != null && !targetEtag.isBlank()) {
+                if (lockEnabled() && targetLockToken != null && !targetLockToken.isBlank()) {
+                    conditions.add(String.format("<%s> (<%s> [%s])", src, targetLockToken, targetEtag));
+                } else {
+                    conditions.add(String.format("<%s> ([%s])", src, targetEtag));
+                }
+            }
+            if (!conditions.isEmpty()) {
+                headers.put("If", conditions.stream().collect(Collectors.joining(" ")));
+            }
+
+            if (op == Operation.COPY) {
+                sardine.copy(src, target, overwrite, headers);
+            } else {
+                sardine.move(src, target, overwrite, headers);
+            }
+        }
+    }
+
+    /**
+     * Prepares moving a file from one destination to the other. File id stays the
+     * same!
+     * 
+     */
+    public FileMoveOperationBuilder moveFile() {
+        return new FileMoveOperationBuilder(
+                io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService.FileMoveOperationBuilder.Operation.MOVE);
+    }
+
+    /**
+     * Prepares coping a file from one destination to the other.
+     * 
+     */
+    public FileMoveOperationBuilder copyFile() {
+        return new FileMoveOperationBuilder(
+                io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService.FileMoveOperationBuilder.Operation.COPY);
     }
 
     /**
@@ -758,6 +1134,26 @@ public class NextcloudFileService {
     }
 
     /**
+     * Checks if file locks are currently enabled
+     * 
+     * @return
+     */
+    public boolean lockEnabled() {
+        return this.lockEnabled;
+    }
+
+    /**
+     * Throws an exception if {@link #lockEnabled()} is false
+     * 
+     * @throws IOException
+     */
+    protected void assertLockEnabled() throws IOException {
+        if (!lockEnabled()) {
+            throw new IOException("Property 'nextcloud.file-lock-enabled' not enabled. Files lock not supported");
+        }
+    }
+
+    /**
      * Locks the given file remote on the Nextcloud server. Requires the
      * 'files_lock' app to be active
      * 
@@ -766,9 +1162,24 @@ public class NextcloudFileService {
      * @throws RuntimeException
      */
     public NextCloudFileLock lockFile(String path) throws IOException {
+        assertLockEnabled();
         final String url = getWebDavFilePath(path);
         final String token = sardine.lock(url);
         return new NextCloudFileLock(url, token);
+    }
+
+    /**
+     * Locks the given file remote on the Nextcloud server. Requires the
+     * 'files_lock' app to be active
+     * 
+     * @param file File to lock
+     * @return {@link NextCloudFileLock}
+     * @throws RuntimeException
+     */
+    public NextCloudFileLock lockFile(NextcloudFile file) throws IOException {
+        assertLockEnabled();
+        final String url = file.path();
+        return lockFile(url);
     }
 
 }

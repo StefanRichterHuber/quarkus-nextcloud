@@ -40,7 +40,7 @@ public class NextcloudUserService {
      * @return Information about the current user, or an empty Optional if the user
      *         is not found
      */
-    public Optional<NextcloudUser> getCurrentUserInfo() {
+    public NextcloudUser getCurrentUserInfo() {
         return getUserInfo(authProvider.getUser());
     }
 
@@ -49,57 +49,84 @@ public class NextcloudUserService {
      * available for the current user or for administrators.
      * 
      * @param user Username of the user to get information about
-     * @return Information about the current user, or an empty Optional if the user
-     *         is not found
+     * @return Information about the current user, or null if the user is not found
      */
-    public Optional<NextcloudUser> getUserInfo(String user) {
+    public NextcloudUser getUserInfo(String user) {
         if (user == null || user.isBlank()) {
-            return Optional.empty();
+            return null;
         }
         final NextcloudRestClient client = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(URI.create(authProvider.getServer()))
                 .followRedirects(true)
                 .build(NextcloudRestClient.class);
 
-        final OCSMessage<NextcloudUser> response = client.getUserInfo(user);
-        if (response.isOk()) {
-            return Optional.ofNullable(response.ocs().data());
-        } else {
-            return Optional.empty();
+        try {
+            final OCSMessage<NextcloudUser> response = client.getUserInfo(user);
+            if (response.isOk()) {
+                return response.ocs().data();
+            } else {
+                return null;
+            }
+        } catch (WebApplicationException e) {
+            log.debugf(e, "Failed to fetch infos for user %s", user);
+            return null;
         }
     }
 
     /**
-     * Creates a SecurityContext from a NextcloudUser
+     * Creates a SecurityContext from a NextcloudUser with credentials
+     * 
+     * @param user        user
+     * @param credentials Credentials of the user
+     * @return SecurityContext created
+     */
+    public SecurityContext getSecurityContext(NextcloudUser user, NextcloudUserCredentials credentials) {
+        return new NextcloudSecurityIdentity(user, credentials, null);
+    }
+
+    /**
+     * Creates a SecurityContext from a NextcloudUser without credentials
      * 
      * @param user user
      * @return
      */
     public SecurityContext getSecurityContext(NextcloudUser user) {
-        return new NextcloudSecurityIdentity(user, null, null);
+        return getSecurityContext(user, null);
     }
 
     /**
-     * Creates a SecurityContext from a NextcloudUser
+     * Creates a SecurityContext from a NextcloudUser with credentials
+     * 
+     * @param user        user
+     * @param credentials Credentials
+     * @return SecurityContext created
+     */
+    public SecurityContext getSecurityContext(String user, NextcloudUserCredentials credentials) {
+        final NextcloudUser userInfo = getUserInfo(user);
+        return userInfo != null ? getSecurityContext(userInfo, credentials) : null;
+    }
+
+    /**
+     * Creates a SecurityContext from a NextcloudUser without credentials
      * 
      * @param user user
-     * @return
+     * @return SecurityContext created
      */
     public SecurityContext getSecurityContext(String user) {
-        return getUserInfo(user).map(u -> new NextcloudSecurityIdentity(u, null, null)).orElse(null);
+        return getSecurityContext(user, null);
     }
 
     /**
-     * Creates a SecurityContext for the current user
+     * Creates a SecurityContext for the current user without credentials
      * 
      * @return
      */
     public SecurityContext getSecurityContextForCurrentUser() {
-        return getSecurityContext(authProvider.getUser());
+        return getSecurityContext(authProvider.getUser(), authProvider.getCredentials());
     }
 
     /**
-     * Creates a SecurityIdentity from a NextcloudUser
+     * Creates a SecurityIdentity from a NextcloudUser with credentials
      * 
      * @param user        user
      * @param credentials credentials
@@ -116,7 +143,7 @@ public class NextcloudUserService {
      *                        settings), Required
      * @return Credentials
      */
-    public Optional<NextcloudUserCredentials> getAppPassword(String applicationName) {
+    public NextcloudUserCredentials getAppPassword(String applicationName) {
         if (applicationName == null || applicationName.isBlank()) {
             throw new IllegalArgumentException("applicationName must not be null or empty");
         }
@@ -132,19 +159,61 @@ public class NextcloudUserService {
                 final String user = authProvider.getUser();
                 final String server = authProvider.getServer();
 
-                return Optional.of(new NextcloudUserCredentials(user, secret, server, Mode.APP_PASSWORD));
+                return (new NextcloudUserCredentials(user, secret, server, Mode.APP_PASSWORD));
             } else {
-                return Optional.empty();
+                return null;
             }
         } catch (WebApplicationException e) {
             log.errorf(e, "Failed to retrieve app password for user %s -> consider account deleted anyway",
                     authProvider.getUser());
-            return Optional.empty();
+            return null;
         }
     }
 
     /**
-     * Deletes the given app password for the current user
+     * Rotates the app password of the given user idenity
+     * 
+     * @param credentials Credentials contianing the password to rotate
+     * @return New Credentials for the same user but with a new app password
+     */
+    public NextcloudUserCredentials rotateAppPassword(NextcloudUserCredentials credentials) {
+        if (credentials == null) {
+            throw new NullPointerException("credentials must not be null");
+        }
+        if (credentials.mode() != NextcloudUserCredentials.Mode.APP_PASSWORD) {
+            throw new IllegalArgumentException(String
+                    .format("Given credentials are of mode %s. This could not be an app password", credentials.mode()));
+        }
+
+        final String server = credentials.server();
+        final String user = credentials.loginName();
+        final String secret = credentials.secret();
+
+        final NextcloudRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(server))
+                .followRedirects(true)
+                .build(NextcloudRestClient.class);
+
+        final String valueToEncode = user + ":" + secret;
+        final String authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+
+        try {
+            final OCSMessage<GetAppPasswordResult> r = client.rotateAppPassword(authHeader);
+            if (r.isOk()) {
+                log.debugf("Successfully rotated app password for user %s", user);
+                return new NextcloudUserCredentials(user, r.ocs().data().apppassword(), server, Mode.APP_PASSWORD);
+            } else {
+                log.errorf("Failed to rotate app password for user %s", user);
+                return null;
+            }
+        } catch (WebApplicationException e) {
+            log.errorf("Failed to rotate app password for user %s", user);
+            return null;
+        }
+    }
+
+    /**
+     * Deletes the given app password for the given user identity
      * 
      * @param credentials Password to delete, must be non-empty
      * @return Success of the operation
@@ -175,11 +244,11 @@ public class NextcloudUserService {
             if (r.isOk()) {
                 log.infof("Successfully deleted app password for user %s", user);
             } else {
-                log.errorf("Failed to deleted app password for user %s -> consider account deleted anyway", user);
+                log.errorf("Failed to deleted app password for user %s -> consider app password deleted anyway", user);
                 return false;
             }
         } catch (WebApplicationException e) {
-            log.errorf(e, "Failed to deleted app password for user %s -> consider account deleted anyway", user);
+            log.errorf(e, "Failed to deleted app password for user %s -> consider app password deleted anyway", user);
             return false;
         }
         // If a non 200 status code is returned the client should still proceed with
