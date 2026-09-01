@@ -95,18 +95,44 @@ public interface NextcloudDevServicesConfig {
     DefaultApps defaultApps();
 
     public interface DefaultApps {
+        /**
+         * App to install to enable webdav lock for files
+         * 
+         * @return
+         */
         @WithDefault("files_lock")
         String filesLock();
 
+        /**
+         * App to install for an OIDC identity provider
+         * 
+         * @return
+         */
         @WithDefault("oidc")
         String oidc();
 
+        /**
+         * App to install for an OIDC identity provider client for authentication within
+         * nextcloud
+         * 
+         * @return
+         */
         @WithDefault("user_oidc")
         String userOidc();
 
+        /**
+         * App to install for EX_APP support
+         * 
+         * @return
+         */
         @WithDefault("app_api")
         String appApi();
 
+        /**
+         * App to install for webhook event listeners
+         * 
+         * @return
+         */
         @WithDefault("webhook_listeners")
         String webhookListeners();
     }

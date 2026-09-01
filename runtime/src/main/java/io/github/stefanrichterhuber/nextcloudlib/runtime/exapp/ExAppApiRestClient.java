@@ -46,6 +46,7 @@ public interface ExAppApiRestClient {
      * Reports this ExApp's initialization progress to the AppAPI.
      *
      * @param progress percentage complete (0–100), or an error payload
+     * @param error    Error message
      */
     public static record AppInitProgress(int progress, String error) {
         /**
@@ -154,6 +155,9 @@ public interface ExAppApiRestClient {
 
     /**
      * Request body for sending a log entry to the Nextcloud global log.
+     * 
+     * @param level   Log level for the message
+     * @param message Message to log
      */
     public static record LogRequest(Level level, @Nonnull String message) {
         public static enum Level {
@@ -195,6 +199,8 @@ public interface ExAppApiRestClient {
 
     /**
      * Request body for unregistering a previously registered UI element by name.
+     * 
+     * @param name Name of the item to remove
      */
     public static record UnregisterRequest(@Nonnull String name) {
     }
