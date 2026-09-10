@@ -18,16 +18,6 @@ import jakarta.inject.Inject;
  * {@link OnNextcloudEvent} handler method is present.
  * </p>
  *
- * <p>
- * The full callback URL is constructed as
- * {@code nextcloud.webhook.host + nextcloud.webhook.path}, e.g.
- * {@code https://myapp.example.com/webhook}.
- * </p>
- *
- * <p>
- * Failures (Nextcloud unreachable, auth errors, etc.) are caught and logged so
- * that a registration problem never prevents the application from starting.
- * </p>
  */
 @ApplicationScoped
 public class NextcloudWebhookStartupRegistrar {

@@ -17,6 +17,8 @@ import org.apache.tika.parser.txt.CharsetMatch;
 import org.jboss.logging.Logger;
 
 import com.github.difflib.DiffUtils;
+import com.github.difflib.UnifiedDiffUtils;
+import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.Patch;
 import com.github.difflib.patch.PatchFailedException;
 
@@ -51,7 +53,7 @@ public class NextcloudFileDiffService {
             final String cs = cm.getName();
             return Optional.ofNullable(Charset.forName(cs));
         } else {
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -77,6 +79,19 @@ public class NextcloudFileDiffService {
             default:
                 return "\n";
         }
+    }
+
+    /**
+     * Returns a git-style unified diff for the content differences between two
+     * files.
+     *
+     * @param f1 First file
+     * @param f2 Second file
+     * @return Git-style unified diff string
+     */
+    public String getContentGitDiff(NextcloudFile f1, NextcloudFile f2) {
+        Patch<String> patch = getContentPatch(f1, f2);
+        return deltasToGitPatch(patch, f1.path(), f2.path());
     }
 
     /**
@@ -122,6 +137,90 @@ public class NextcloudFileDiffService {
                     d1.getContentType(), d2.getContentType());
             return DiffUtils.diff(Collections.emptyList(), Collections.emptyList());
         }
+    }
+
+    /**
+     * Serialises a list of diff deltas into a unified (git-style) patch string.
+     *
+     * <p>
+     * The output follows the standard unified diff format:
+     * 
+     * <pre>
+     * --- fileName1
+     * +++ fileName2
+     * &#64;@ -&lt;src-pos&gt;,&lt;src-size&gt; +&lt;tgt-pos&gt;,&lt;tgt-size&gt; @@
+     * -removed line
+     * +added line
+     * </pre>
+     *
+     * @param patch     the patch object containing the differences
+     * @param fileName1 label for the original file (used in the {@code ---} header
+     *                  line).
+     * @param fileName2 label for the modified file (used in the {@code +++} header
+     *                  line).
+     * @return the complete unified diff as a string.
+     */
+    public String deltasToGitPatch(Patch<String> patch, String fileName1, String fileName2) {
+        return deltasToGitPatch(patch.getDeltas(), fileName1, fileName2);
+    }
+
+    /**
+     * Serialises a list of diff deltas into a unified (git-style) patch string.
+     *
+     * <p>
+     * The output follows the standard unified diff format:
+     * 
+     * <pre>
+     * --- fileName1
+     * +++ fileName2
+     * &#64;@ -&lt;src-pos&gt;,&lt;src-size&gt; +&lt;tgt-pos&gt;,&lt;tgt-size&gt; @@
+     * -removed line
+     * +added line
+     * </pre>
+     *
+     * @param deltas    the list of change deltas produced
+     * @param fileName1 label for the original file (used in the {@code ---} header
+     *                  line).
+     * @param fileName2 label for the modified file (used in the {@code +++} header
+     *                  line).
+     * @return the complete unified diff as a string.
+     */
+    public String deltasToGitPatch(List<AbstractDelta<String>> deltas, String fileName1, String fileName2) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("--- ").append(fileName1).append("\n");
+        sb.append("+++ ").append(fileName2).append("\n");
+
+        for (AbstractDelta<String> delta : deltas) {
+            sb.append("@@ -").append(delta.getSource().getPosition() + 1).append(",").append(delta.getSource().size())
+                    .append(" +").append(delta.getTarget().getPosition() + 1).append(",")
+                    .append(delta.getTarget().size()).append(" @@\n");
+            for (String line : delta.getSource().getLines()) {
+                sb.append("-").append(line).append("\n");
+            }
+            for (String line : delta.getTarget().getLines()) {
+                sb.append("+").append(line).append("\n");
+            }
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Applies a git-style unified diff to the given file and uploads the file again
+     * 
+     * @param file      File to patch
+     * @param gitDiff   Git-style unified diff string
+     * @param fuzz      Fuzz factor for the patch. Roughly how many lines the patch
+     *                  definition can be off from the actual source
+     * @param lockToken Optional lock token to update a locked file
+     * @throws IOException
+     * @throws PatchFailedException
+     */
+    public void applyGitDiff(NextcloudFile file, String gitDiff, int fuzz, @Nullable String lockToken)
+            throws IOException, PatchFailedException {
+        final List<String> patchContent = List.of(gitDiff.split("\n"));
+        final Patch<String> patch = UnifiedDiffUtils.parseUnifiedDiff(patchContent);
+        applyContentPatch(file, patch, fuzz, lockToken);
     }
 
     /**

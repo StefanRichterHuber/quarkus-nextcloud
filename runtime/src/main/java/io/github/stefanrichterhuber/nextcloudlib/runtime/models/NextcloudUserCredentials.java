@@ -82,23 +82,22 @@ public record NextcloudUserCredentials(String loginName, String secret, String s
     }
 
     /**
-     * Returns the required headers for the current authentication mode.
+     * Returns the required HTTP headers for the current authentication mode.
      * 
      * @return Map of required headers for the current authentication mode. Usually
      *         at least contains a
-     *         "OCS-APIRequest": "true" header.
+     *         "OCS-APIRequest": "true" header and some authentication headers
+     *         depending on the mode.
      */
     public MultivaluedMap<String, String> getRequiredHeaders() {
+        final MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+        headers.add("OCS-APIRequest", "true");
         if (this.mode() == Mode.EXAPP_API) {
             final SmallRyeConfig config = ConfigProvider.getConfig().unwrap(SmallRyeConfig.class);
             final NextcloudExappAppConfig appConfig = config.getConfigMapping(NextcloudExappAppConfig.class);
 
-            final MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
-            headers.add("OCS-APIRequest", "true");
-
             headers.putSingle("EX-APP-ID", appConfig.id());
             headers.putSingle("EX-APP-VERSION", appConfig.version());
-            headers.putSingle("OCS-APIRequest", "true");
             headers.putSingle("User-Agent", appConfig.id());
 
             final String user = loginName();
@@ -106,19 +105,16 @@ public record NextcloudUserCredentials(String loginName, String secret, String s
             final String auth = user + ":" + secret;
             final String authHeader = Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
             headers.putSingle("AUTHORIZATION-APP-API", authHeader);
-            return headers;
         } else {
-            final MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
-            headers.add("OCS-APIRequest", "true");
 
             if (this.mode() == Mode.OIDC_TOKEN) {
                 headers.putSingle("Authorization", "Bearer " + this.secret());
             } else {
                 final String valueToEncode = loginName() + ":" + secret();
                 headers.putSingle("Authorization",
-                        "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes()));
+                        "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes(StandardCharsets.UTF_8)));
             }
-            return headers;
         }
+        return headers;
     }
 }

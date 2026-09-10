@@ -4,7 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Objects;
 
 import jakarta.activation.DataSource;
@@ -58,8 +58,12 @@ public class ByteArrayDataSource implements DataSource {
 
     @Override
     public String getName() {
-        return Paths.get(path).getFileName().toString().replace("%20", " ");
-
+        if (path == null) {
+            return "";
+        }
+        final String stripped = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        final String name = stripped.substring(stripped.lastIndexOf('/') + 1);
+        return name.replace("%20", " ");
     }
 
     @Override
@@ -70,14 +74,14 @@ public class ByteArrayDataSource implements DataSource {
         if (other instanceof ByteArrayDataSource ds) {
             return Objects.equals(this.contentType, ds.contentType) &&
                     Objects.equals(this.path, ds.path) &&
-                    Objects.equals(this.content, ds.content);
+                    Arrays.equals(this.content, ds.content);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.contentType, this.path, this.content);
+        return Objects.hash(this.contentType, this.path, Arrays.hashCode(this.content));
     }
 
 }

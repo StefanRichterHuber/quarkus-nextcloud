@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -87,6 +88,48 @@ public class NextcloudFileDiffTest {
 
         } finally {
             service.deleteFile(filename, null, (String) null);
+        }
+    }
+
+    @Test
+    public void createPatchTest() throws IOException, PatchFailedException {
+        service.createDirectories(ROOT_DIR);
+        final String content1 = TEST_TEXT1;
+        final String content2 = TEST_TEXT1.replace("Ode to the Cloud", "Hello to the cloud");
+
+        final String filename1 = ROOT_DIR + "/" + UUID.randomUUID().toString() + "1.md";
+        final String filename2 = ROOT_DIR + "/" + UUID.randomUUID().toString() + "2.md";
+
+        service.uploadFile(filename1, "text/markdown",
+                new ByteArrayInputStream(content1.getBytes(StandardCharsets.UTF_8)));
+        service.uploadFile(filename2, "text/markdown",
+                new ByteArrayInputStream(content2.getBytes(StandardCharsets.UTF_8)));
+
+        try {
+            final NextcloudFile file1 = service.getFile(filename1);
+            final NextcloudFile file2 = service.getFile(filename2);
+
+            final Patch<String> patch = diffService.getContentPatch(file1, file2);
+            assertNotNull(patch);
+
+            final String gitDiff = diffService.deltasToGitPatch(patch, filename1, filename2);
+
+            // Check if the patch can be applied to file1 to get file2
+            final List<String> patchContent = List.of(gitDiff.split("\n"));
+            final Patch<String> patchFromGit = UnifiedDiffUtils.parseUnifiedDiff(patchContent);
+
+            final int fuzz = 1;
+            final String content = content1;
+            final String lineSplitter = "\n";
+            final List<String> contentLines = List.of(content.split("\r?\n|\r"));
+            final List<String> patchedContentLines = patchFromGit.applyFuzzy(contentLines, fuzz);
+            final String patchedContent = patchedContentLines.stream().collect(Collectors.joining(lineSplitter));
+
+            assertEquals(content2.trim(), patchedContent.trim());
+
+        } finally {
+            service.deleteFile(filename1);
+            service.deleteFile(filename2);
         }
     }
 }

@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -70,7 +69,19 @@ public class SardineDataSource implements DataSource {
 
     @Override
     public String getName() {
-        return Paths.get(file).getFileName().toString().replace("%20", " ");
+        if (file == null) {
+            return "";
+        }
+        String path = file;
+        final int query = path.indexOf('?');
+        if (query >= 0) {
+            path = path.substring(0, query);
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        final String name = path.substring(path.lastIndexOf('/') + 1);
+        return name.replace("%20", " ");
     }
 
     @Override

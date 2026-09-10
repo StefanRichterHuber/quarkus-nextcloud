@@ -23,8 +23,10 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class NextcloudWebhookSecretHolder {
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    private static final Logger LOG = Logger.getLogger(NextcloudWebhookSecretHolder.class);
+    @Inject
+    Logger logger;
 
     @Inject
     NextcloudWebhookConfig config;
@@ -35,9 +37,9 @@ public class NextcloudWebhookSecretHolder {
     void init() {
         secret = config.secret().orElseGet(() -> {
             byte[] bytes = new byte[32];
-            new SecureRandom().nextBytes(bytes);
+            SECURE_RANDOM.nextBytes(bytes);
             String generated = HexFormat.of().formatHex(bytes);
-            LOG.warn("nextcloud.webhook.secret is not configured. " +
+            logger.warn("nextcloud.webhook.secret is not configured. " +
                     "A random secret has been generated for this startup. " +
                     "This secret changes on every restart, causing the Nextcloud webhook " +
                     "registration to fail after a restart. " +

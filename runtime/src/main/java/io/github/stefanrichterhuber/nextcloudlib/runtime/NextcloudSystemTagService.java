@@ -100,7 +100,7 @@ public class NextcloudSystemTagService {
                 new QName("http://owncloud.org/ns", "display-name", "oc") //
         ));
 
-        return resources.stream().filter(r -> !r.getCustomProps().getOrDefault("id", "").equals(""))
+        return resources.stream().filter(r -> !r.getCustomProps().getOrDefault("id", "").isEmpty())
                 .map(SystemTag::from).collect(Collectors.toList());
     }
 
@@ -134,7 +134,7 @@ public class NextcloudSystemTagService {
                 new QName("DAV:", "getetag", "d") //
         ));
 
-        return resources.stream().filter(r -> !r.getCustomProps().getOrDefault("id", "").equals(""))
+        return resources.stream().filter(r -> !r.getCustomProps().getOrDefault("id", "").isEmpty())
                 .map(SystemTag::from).collect(Collectors.toList());
     }
 

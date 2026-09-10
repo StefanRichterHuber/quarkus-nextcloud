@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.stefanrichterhuber</groupId>
+        <artifactId>nextcloudlib-parent</artifactId>
+        <version>3.0.2-SNAPSHOT</version>
+    </parent>
+    <artifactId>nextcloudlib-coverage</artifactId>
+    <packaging>pom</packaging>
+    <name>Nextcloudlib - Coverage Report</name>
+    <description>
+        Aggregates JaCoCo coverage data collected by the quarkus-jacoco extension while the
+        @QuarkusTest suites in the integration-tests module run in-JVM, and renders an HTML/XML
+        report for the production code in the runtime module.
+        Build with: mvn verify -Pintegration-tests
+        Report:     coverage/target/site/jacoco-aggregate/index.html
+    </description>
+
+    <properties>
+        <!-- Nothing to publish or test here -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
+
+    <dependencies>
+        <!-- Code under test: contributes classes + sources to the aggregated report -->
+        <dependency>
+            <groupId>io.github.stefanrichterhuber</groupId>
+            <artifactId>nextcloudlib</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Test module: report-aggregate discovers its jacoco-quarkus.exec file -->
+        <dependency>
+            <groupId>io.github.stefanrichterhuber</groupId>
+            <artifactId>nextcloudlib-integration-tests</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>aggregate-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <title>Nextcloudlib - aggregated coverage</title>
+                            <!--
+                                No dataFileIncludes: the default picks up every *.exec in each
+                                dependency module's target folder, i.e. the jacoco-quarkus.exec
+                                written by the quarkus-jacoco extension in integration-tests.
+                            -->
+                            <excludes>
+                                <exclude>**/*_Bean.class</exclude>
+                                <exclude>**/*_ClientProxy.class</exclude>
+                                <exclude>**/*_Observer_*.class</exclude>
+                                <exclude>**/*_Synthetic_*.class</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

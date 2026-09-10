@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.w3c.dom.Element;
 
 import com.github.sardine.Sardine;
@@ -134,8 +135,8 @@ public class FileQueryResult {
          */
         public NextcloudFile toNextCloudFile(Sardine sardine, String user) {
             final Date lastModified = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
-                    .map(Long::parseLong).map(Date::new).orElse(null);
-            final Integer fileId = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
+                    .map(this::parseDate).orElse(null);
+            final Integer fileId = getProperty(Property.FILE_ID).map(Object::toString)
                     .map(Integer::parseInt).orElse(null);
             final String etag = getProperty(Property.GET_ETAG).map(Object::toString).orElse(null);
             final Long contentLength = getProperty(Property.GET_CONTENT_LENGTH).map(Object::toString)
@@ -148,6 +149,18 @@ public class FileQueryResult {
                     etag, lastModified, ds,
                     contentLength);
             return file;
+        }
+
+        private Date parseDate(String dateString) {
+            if (dateString == null || dateString.isBlank()) {
+                return null;
+            }
+            if (NumberUtils.isParsable(dateString)) {
+                return new Date(Long.parseLong(dateString));
+            } else {
+                return new Date(dateString);
+            }
+
         }
 
     }

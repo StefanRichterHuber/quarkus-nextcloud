@@ -126,7 +126,7 @@ public class Query implements Renderable {
         // From
         sb.append(indent(indent + 2)).append("<d:from>\n");
         sb.append(indent(indent + 3)).append("<d:scope>\n");
-        sb.append(indent(indent + 4)).append("<d:href>").append(this.href).append("</d:href>\n");
+        sb.append(indent(indent + 4)).append("<d:href>").append(escapeXmlText(this.href)).append("</d:href>\n");
         sb.append(indent(indent + 4)).append("<d:depth>").append(depth != null ? depth : "infinity")
                 .append("</d:depth>\n");
         sb.append(indent(indent + 3)).append("</d:scope>\n");

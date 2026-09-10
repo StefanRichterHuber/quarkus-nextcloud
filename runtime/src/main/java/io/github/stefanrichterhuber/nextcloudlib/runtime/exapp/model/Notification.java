@@ -15,15 +15,15 @@ public class Notification {
     /**
      * Required but not used yet, use default
      */
-    private final String object = "app_api";
+    private static final String OBJECT = "app_api";
     /**
      * Required but not used yet
      */
-    private final String objectId = "app_api_id"; // UUID.randomUUID().toString();
+    private static final String OBJECT_ID = "app_api_id"; // UUID.randomUUID().toString();
     /**
      * Required but not used yet, set default
      */
-    private final String subjectType = "app_api_ex_app";
+    private static final String SUBJECT_TYPE = "app_api_ex_app";
     private String subject = "";
     private Map<String, Parameter<?>> subjectParameter = new HashMap<>();
     private String message = "";
@@ -108,8 +108,8 @@ public class Notification {
      */
     public NotificationRequest toRequest() {
         return new NotificationRequest(
-                new NotificationRequest.Params(object, objectId,
-                        subjectType,
+                new NotificationRequest.Params(OBJECT, OBJECT_ID,
+                        SUBJECT_TYPE,
                         new NotificationRequest.Params.SubjectParams(
                                 subject,
                                 subjectParameter,

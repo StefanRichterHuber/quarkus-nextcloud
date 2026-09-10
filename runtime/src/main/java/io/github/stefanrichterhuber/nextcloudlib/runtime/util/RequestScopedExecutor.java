@@ -10,7 +10,7 @@ import io.quarkus.arc.ManagedContext;
  * Creates a new executor wrapping an existing one, but starting a request
  * context in the new thread
  */
-public class RequestScopedExecutor implements Executor {
+public final class RequestScopedExecutor implements Executor {
     private final Executor delegate;
 
     public RequestScopedExecutor(final Executor delegate) {
@@ -21,11 +21,18 @@ public class RequestScopedExecutor implements Executor {
     public void execute(Runnable command) {
         delegate.execute(() -> {
             final ManagedContext ctx = Arc.container().requestContext();
-            ctx.activate();
+            final boolean contextWasActive = ctx.isActive();
+
+            if (!contextWasActive) {
+                ctx.activate();
+            }
             try {
                 command.run();
             } finally {
-                ctx.terminate();
+                if (!contextWasActive) {
+                    ctx.deactivate();
+                    ctx.terminate();
+                }
             }
         });
     }

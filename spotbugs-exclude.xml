@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs / FindSecBugs exclusion filter.
+  Only patterns that are noise for this code base or confirmed false positives
+  are listed here. Real findings are fixed in the source.
+-->
+<FindBugsFilter>
+
+    <!--
+      EI_EXPOSE_REP / EI_EXPOSE_REP2: the affected types are immutable-style data
+      transfer objects (records and simple models) that map Nextcloud API
+      responses. Defensive copies of every List/Map/Date would add churn with no
+      practical benefit for callers.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+        <Package name="~io\.github\.stefanrichterhuber\.nextcloudlib.*" />
+    </Match>
+
+    <!--
+      POTENTIAL_XML_INJECTION in the search-query builder: caller-supplied text is
+      XML-escaped via Renderable.escapeXmlText() (see Literal, Query#render,
+      FileSelector#toXML); the remaining renderables emit only constant element
+      and namespace-prefix names. FindSecBugs cannot recognise the custom
+      sanitiser and flags every append into the XML StringBuilder.
+    -->
+    <Match>
+        <Bug pattern="POTENTIAL_XML_INJECTION" />
+        <Package name="io.github.stefanrichterhuber.nextcloudlib.runtime.models.search" />
+    </Match>
+
+    <!--
+      CustomHeaderSardineImpl uses a JDK flexible constructor body: the 'headers'
+      field is assigned before the explicit super() call precisely so the
+      overridden configure() invoked from the superclass constructor sees it.
+      SpotBugs does not yet model the pre-super() bytecode ordering.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.runtime.clients.impl.CustomHeaderSardineImpl" />
+        <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR" />
+    </Match>
+
+    <!--
+      PATH_TRAVERSAL_IN: these call sites only derive a display file name from a
+      string; no file system resource is opened from the value.
+    -->
+    <Match>
+        <Bug pattern="PATH_TRAVERSAL_IN" />
+        <Or>
+            <Class name="io.github.stefanrichterhuber.nextcloudlib.runtime.models.ByteArrayDataSource" />
+            <Class name="io.github.stefanrichterhuber.nextcloudlib.runtime.models.SardineDataSource" />
+        </Or>
+    </Match>
+
+    <!-- Style-only inner-class / static-field suggestions. -->
+    <Match>
+        <Bug pattern="SIC_INNER_SHOULD_BE_STATIC,SS_SHOULD_BE_STATIC" />
+    </Match>
+
+    <!--
+      Quarkus @BuildStep(onlyIf = IsExApp.class) gate: Quarkus instantiates the
+      class and injects the NextcloudExappConfig field reflectively at build time.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.deployment.IsExApp" />
+        <Bug pattern="UWF_UNWRITTEN_FIELD,NP_UNWRITTEN_FIELD" />
+    </Match>
+
+    <!--
+      NextcloudContainer is a Testcontainers GenericContainer subclass; identity
+      equality inherited from the base class is the intended behaviour.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.deployment.NextcloudContainer" />
+        <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS" />
+    </Match>
+
+    <!-- Quarkus-generated *$$accessor helper classes. -->
+    <Match>
+        <Class name="~.*\$\$accessor" />
+        <Bug pattern="NM_CLASS_NAMING_CONVENTION" />
+    </Match>
+
+    <!-- ===================================================================
+         sb-contrib (SpotBugs Contrib) rules
+         =================================================================== -->
+
+    <!--
+      Opinionated style / micro-optimisation rules from sb-contrib that do not
+      point at defects: single-char String vs char args, store-before-return,
+      lambda-vs-method-reference, pre-sizing collections, field-could-be-local /
+      -static on constants, toString() parsing, boxing valueOf, "burying logic",
+      overload-model advice, checked->unchecked softening, map-used-as-list.
+    -->
+    <Match>
+        <Bug pattern="UCPM_USE_CHARACTER_PARAMETERIZED_METHOD,USBR_UNNECESSARY_STORE_BEFORE_RETURN,FII_USE_METHOD_REFERENCE,PRMC_POSSIBLY_REDUNDANT_METHOD_CALLS,NAB_NEEDLESS_BOXING_VALUEOF,NAB_NEEDLESS_BOOLEAN_CONSTANT_CONVERSION,PSC_PRESIZE_COLLECTIONS,BL_BURYING_LOGIC,MOM_MISLEADING_OVERLOAD_MODEL,STT_STRING_PARSING_A_FIELD,FCBL_FIELD_COULD_BE_LOCAL,SPP_FIELD_COULD_BE_STATIC,ITC_INHERITANCE_TYPE_CHECKING,EXS_EXCEPTION_SOFTENING_HAS_CHECKED,EXS_EXCEPTION_SOFTENING_NO_CONSTRAINTS,ITU_INAPPROPRIATE_TOSTRING_USE,DMC_DUBIOUS_MAP_COLLECTION,FCCD_FIND_CLASS_CIRCULAR_DEPENDENCY,LSC_LITERAL_STRING_COMPARISON,OCP_OVERLY_CONCRETE_COLLECTION_PARAMETER,DRE_DECLARED_RUNTIME_EXCEPTION" />
+    </Match>
+
+    <!--
+      Anonymous SardineReport implementations must declare 'throws IOException'
+      because the overridden SardineReport.toXml() does; sb-contrib flags the
+      unused declaration.
+    -->
+    <Match>
+        <Bug pattern="BED_BOGUS_EXCEPTION_DECLARATION" />
+    </Match>
+
+    <!--
+      Testcontainers idiom: GenericContainer subclasses call withXxx() configuration
+      methods (non-final) from their constructor.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.deployment.NextcloudContainer" />
+        <Bug pattern="PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS" />
+    </Match>
+
+    <!--
+      NextcloudLoginService.executorService is a CDI-injected, container-managed
+      ScheduledExecutorService; the application must not shut it down.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService" />
+        <Bug pattern="HES_EXECUTOR_NEVER_SHUTDOWN" />
+    </Match>
+
+    <!--
+      Dev-services-only background worker: the executor uses a daemon thread so it
+      cannot block JVM shutdown, and it lives for the whole dev/build session.
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.deployment.NextcloudDevServicesResultBuildItem" />
+        <Bug pattern="HES_EXECUTOR_NEVER_SHUTDOWN" />
+    </Match>
+
+    <!--
+      MicroProfile Rest Client interface: the @PathParam("webhookId") is resolved
+      by the {webhookId} template in @Path (identical to updateWebhook /
+      deleteWebhook, which sb-contrib does not flag).
+    -->
+    <Match>
+        <Class name="io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient" />
+        <Bug pattern="JXI_PARM_PARAM_NOT_FOUND_IN_PATH" />
+    </Match>
+
+    <!--
+      sb-contrib UWF_UNWRITTEN_FIELD on WebhookMessage.Builder.id / .appId: these
+      are intentionally never set on the builder (assigned by Nextcloud, always
+      null in registration/update requests).
+    -->
+    <Match>
+        <Class name="~.*WebhookMessage\$Builder" />
+        <Bug pattern="UWF_UNWRITTEN_FIELD" />
+        <Or>
+            <Field name="id" />
+            <Field name="appId" />
+        </Or>
+    </Match>
+
+</FindBugsFilter>

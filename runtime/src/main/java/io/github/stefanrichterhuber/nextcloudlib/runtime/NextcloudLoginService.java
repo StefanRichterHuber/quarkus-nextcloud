@@ -19,11 +19,12 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCre
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.Response;
 
 /**
- * Service for handling the Nextcloud Login Flow. It initiates the login flow,
- * polls for the generated token
+ * Service for initiating and handling the Nextcloud Login Flow V2.
+ * 
+ * @see <a href=
+ *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
  */
 @ApplicationScoped
 public class NextcloudLoginService {
@@ -87,6 +88,11 @@ public class NextcloudLoginService {
      *                e.g. https://nextcloud.example.com:8080)
      * @param appName Name of the app to use for the login flow (shown during the
      *                login process))
+     * @return A {@link LoginFlowJob} containing the URL the user has to click and a
+     *         future that will be completed once the user has finished the login
+     *         flow, containing the generated app credentials, or completed
+     *         exceptionally if the login flow fails (e.g. if the user does not
+     *         finish the login process within 20 minutes)
      * 
      * @see <a href=
      *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
@@ -135,14 +141,15 @@ public class NextcloudLoginService {
      * @see <a href=
      *      "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html</a>
      */
-    private void pollLoginToken(NextcloudLoginFlowRestClient loginFlowClient,
+    protected void pollLoginToken(NextcloudLoginFlowRestClient loginFlowClient,
             String token, String pollurl, Duration remainingTime,
             CompletableFuture<NextcloudUserCredentials> result) {
         try {
-            final Response response = loginFlowClient.pollLoginFlowV2(token);
-            final NextcloudAppCredentials cr = response.readEntity(NextcloudAppCredentials.class);
-
+            final NextcloudAppCredentials cr = loginFlowClient.pollLoginFlowV2(token);
             final NextcloudUserCredentials session = cr.toUserCredentials();
+            log.debugf("Login flow completed successfully for user {} on server {} within {} minutes",
+                    session.loginName(),
+                    session.server(), tokenMaxTime.toMinutes() - remainingTime.toMinutes());
             result.complete(session);
 
         } catch (ClientWebApplicationException e) {

@@ -10,7 +10,7 @@ public class Literal implements Value {
     @Override
     public StringBuilder render(StringBuilder sb, int indent) {
         // <d:literal>12345</d:literal>
-        sb.append(indent(indent)).append("<d:literal>").append(value).append("</d:literal>");
+        sb.append(indent(indent)).append("<d:literal>").append(escapeXmlText(value)).append("</d:literal>");
         return sb;
     }
 }

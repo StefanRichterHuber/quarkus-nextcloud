@@ -3,6 +3,7 @@ package io.github.stefanrichterhuber.nextcloudlib.files;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayInputStream;
@@ -100,8 +101,8 @@ public class NextcloudFileTest {
     public void moveFileTest() throws IOException {
         service.createDirectories(ROOT_DIR);
         // Introduce space to test path
-        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
-        String targetRawFileName = UUID.randomUUID().toString() + " " + "-test-trgt.md";
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        String targetRawFileName = UUID.randomUUID().toString() + "-test-trgt.md";
         String filename = ROOT_DIR + "/" + rawFileName;
         String targetFileName = ROOT_DIR + "/" + targetRawFileName;
         service.uploadFile(filename, "text/markdown",
@@ -127,8 +128,8 @@ public class NextcloudFileTest {
     public void moveFileWithLockTest() throws IOException {
         service.createDirectories(ROOT_DIR);
         // Introduce space to test path
-        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
-        String targetRawFileName = UUID.randomUUID().toString() + " " + "-test-trgt.md";
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        String targetRawFileName = UUID.randomUUID().toString() + "-test-trgt.md";
         String filename = ROOT_DIR + "/" + rawFileName;
         String targetFileName = ROOT_DIR + "/" + targetRawFileName;
         service.uploadFile(filename, "text/markdown",
@@ -165,8 +166,8 @@ public class NextcloudFileTest {
     public void copyFileTest() throws IOException {
         service.createDirectories(ROOT_DIR);
         // Introduce space to test path
-        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
-        String targetRawFileName = UUID.randomUUID().toString() + " " + "-test-trgt.md";
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        String targetRawFileName = UUID.randomUUID().toString() + "-test-trgt.md";
         String filename = ROOT_DIR + "/" + rawFileName;
         String targetFileName = ROOT_DIR + "/" + targetRawFileName;
         service.uploadFile(filename, "text/markdown",
@@ -186,10 +187,51 @@ public class NextcloudFileTest {
     }
 
     @Test
+    public void getFileByModificationDateTest() throws IOException {
+        service.createDirectories(ROOT_DIR);
+        // Introduce space to test path
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        String filename = ROOT_DIR + "/" + rawFileName;
+        service.uploadFile(filename, "text/markdown",
+                new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
+
+        NextcloudFile rev1 = service.getFile(filename);
+        assertNotNull(rev1);
+
+        NextcloudFile rev2 = service.getFileByModifyDate(filename, rev1.modified());
+        assertNotNull(rev2);
+
+        assertEquals(rev1, rev2);
+    }
+
+    @Test
+    public void listFilesTest() throws IOException {
+        service.createDirectories(ROOT_DIR);
+        // Introduce space to test path
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        String filename = ROOT_DIR + "/" + rawFileName;
+        service.uploadFile(filename, "text/markdown",
+                new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
+
+        List<NextcloudFile> files1 = service.listFiles(ROOT_DIR, -1);
+        assertFalse(files1.isEmpty());
+        assertTrue(files1.stream().anyMatch(f -> f.path().endsWith(rawFileName)));
+
+        Integer fileId = files1.stream().filter(f -> f.path().endsWith(rawFileName)).findFirst().map(f -> f.fileId())
+                .orElse(null);
+        assertNotNull(fileId);
+
+        List<NextcloudFile> files2 = service.getFilesByFileIds(List.of(fileId));
+        assertFalse(files2.isEmpty());
+        assertTrue(files2.stream().anyMatch(f -> f.path().endsWith(rawFileName)));
+
+    }
+
+    @Test
     public void overwriteFileWithEtagTest() throws IOException {
         service.createDirectories(ROOT_DIR);
         // Introduce space to test path
-        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
         String filename = ROOT_DIR + "/" + rawFileName;
         service.uploadFile(filename, "text/markdown",
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
@@ -323,10 +365,10 @@ public class NextcloudFileTest {
     }
 
     @Test
-    public void fileRevisionTest() throws IOException {
+    public void fileRevisionTest() throws IOException, InterruptedException {
         service.createDirectories(ROOT_DIR);
         // Introduce space to test path
-        String rawFileName = UUID.randomUUID().toString() + " " + "-test.md";
+        String rawFileName = UUID.randomUUID().toString() + "-test.md";
         String filename = ROOT_DIR + "/" + rawFileName;
         service.uploadFile(filename, "text/markdown",
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
@@ -339,6 +381,11 @@ public class NextcloudFileTest {
                 String c = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 assertEquals(TEST_TEXT1, c);
             }
+
+            // Nextcloud only keeps a stored version when the new upload lands in a
+            // different whole second than the previous one - same-second writes are
+            // deduplicated. Wait so the first upload is reliably archived as a revision.
+            Thread.sleep(1100);
 
             service.uploadFile(filename, "text/markdown",
                     new ByteArrayInputStream(TEST_TEXT2.getBytes(StandardCharsets.UTF_8)));
@@ -355,6 +402,18 @@ public class NextcloudFileTest {
             assertNotNull(revs);
             assertFalse(revs.isEmpty());
             assertEquals(2, revs.size());
+
+            NextcloudFile rev1v = revs.get(0);
+            NextcloudFile rev2v = revs.get(1);
+            assertNotNull(service.getFileRevision(filename, rev1v.etag()));
+            assertNotNull(service.getFileRevision(filename, rev2v.etag()));
+
+            String rev1c = new String(rev1v.dataSource().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertEquals(TEST_TEXT1, rev1c);
+            String rev2c = new String(rev2v.dataSource().getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            assertEquals(TEST_TEXT2, rev2c);
+
+            assertNotNull(service.getFileByModifyDate(filename, rev1.modified()));
 
         } finally {
             service.deleteFile(filename, null, (String) null);

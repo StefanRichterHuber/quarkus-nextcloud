@@ -229,20 +229,19 @@ public class NextcloudCalendarService {
                 new SardineReport<List<CalendarEntry>>() {
                     @Override
                     public String toXml() throws IOException {
-                        return String
-                                .format(" <calendar-query xmlns:D=\"DAV:\" xmlns=\"urn:ietf:params:xml:ns:caldav\">\n" //
-                                        + "   <D:prop>\n"//
-                                        + "     <D:getetag/>\n" //
-                                        + "     <calendar-data />\n" //
-                                        + "   </D:prop>\n" //
-                                        + "   <filter>\n"//
-                                        + "     <comp-filter name=\"VCALENDAR\">\n" //
-                                        + "       <comp-filter name=\"VEVENT\">\n"//
-                                        + "         <time-range start=\"%s\" end=\"%s\"/>\n"//
-                                        + "       </comp-filter>\n" //
-                                        + "     </comp-filter>\n"//
-                                        + "  </filter>\n" //
-                                        + "</calendar-query>", startStr, endStr);
+                        return " <calendar-query xmlns:D=\"DAV:\" xmlns=\"urn:ietf:params:xml:ns:caldav\">\n" //
+                                + "   <D:prop>\n"//
+                                + "     <D:getetag/>\n" //
+                                + "     <calendar-data />\n" //
+                                + "   </D:prop>\n" //
+                                + "   <filter>\n"//
+                                + "     <comp-filter name=\"VCALENDAR\">\n" //
+                                + "       <comp-filter name=\"VEVENT\">\n"//
+                                + "         <time-range start=\"" + startStr + "\" end=\"" + endStr + "\"/>\n"//
+                                + "       </comp-filter>\n" //
+                                + "     </comp-filter>\n"//
+                                + "  </filter>\n" //
+                                + "</calendar-query>";
                     }
 
                     @Override

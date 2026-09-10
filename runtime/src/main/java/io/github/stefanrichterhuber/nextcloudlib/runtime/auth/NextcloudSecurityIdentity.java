@@ -10,8 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.poi.ss.formula.functions.T;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,7 +28,7 @@ import jakarta.ws.rs.core.SecurityContext;
  * integrate with Quarkus' security framework and provide authentication and
  * authorization based on Nextcloud user information.
  */
-public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityContext {
+public final class NextcloudSecurityIdentity implements SecurityIdentity, SecurityContext {
     private static final ObjectMapper om = new ObjectMapper();
     private final NextcloudUser user;
     private final NextcloudUserCredentials credentials;
@@ -78,7 +76,7 @@ public class NextcloudSecurityIdentity implements SecurityIdentity, SecurityCont
             return (T) this.credentials;
         }
         if (this.credentials.mode() == Mode.OIDC_TOKEN && TokenCredential.class.isAssignableFrom(credentialType)) {
-            return (T) new TokenCredential(this.credentials.secret(), "Bearer");
+            return (T) new TokenCredential(this.credentials.secret(), "bearer");
         }
         if ((this.credentials.mode() == Mode.APP_PASSWORD)
                 && PasswordCredential.class.isAssignableFrom(credentialType)) {
