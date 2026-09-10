@@ -1,8 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Optional;
 
 import org.jboss.logging.Logger;
 
@@ -195,7 +195,8 @@ public class NextcloudUserService {
                 .build(NextcloudRestClient.class);
 
         final String valueToEncode = user + ":" + secret;
-        final String authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+        final String authHeader = "Basic "
+                + Base64.getEncoder().encodeToString(valueToEncode.getBytes(StandardCharsets.UTF_8));
 
         try {
             final OCSMessage<GetAppPasswordResult> r = client.rotateAppPassword(authHeader);
@@ -237,7 +238,8 @@ public class NextcloudUserService {
                 .build(NextcloudRestClient.class);
 
         final String valueToEncode = user + ":" + secret;
-        final String authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+        final String authHeader = "Basic "
+                + Base64.getEncoder().encodeToString(valueToEncode.getBytes(StandardCharsets.UTF_8));
 
         try {
             final OCSMessage<Object> r = client.deleteAppPassword(authHeader);

@@ -21,12 +21,14 @@ import jakarta.inject.Inject;
  * incoming event to every {@link NextcloudEventInvoker} whose declared event
  * list contains the event's class name.
  *
- * <p>Each matching invoker is executed on a {@link ManagedExecutor} thread
+ * <p>
+ * Each matching invoker is executed on a {@link ManagedExecutor} thread
  * wrapped in a {@code CredentialsAwareRequestScopedExecutor} so that the CDI
  * request context is properly activated and the triggering user's credentials
  * are available inside the handler.
  *
- * <p>Annotated with {@link DefaultBean} so applications can provide their own
+ * <p>
+ * Annotated with {@link DefaultBean} so applications can provide their own
  * alternative implementation without needing to {@code @Specializes} this one.
  */
 @ApplicationScoped
@@ -51,6 +53,7 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
      * @param event       the event received from Nextcloud
      * @param credentials credentials identifying the user that triggered the event
      */
+    @Override
     public void dispatch(NextcloudEvent<? extends Event> event, NextcloudUserCredentials credentials) {
         final Executor executor = new CredentialsAwareRequestScopedExecutor(scheduledExecutorService,
                 credentials);

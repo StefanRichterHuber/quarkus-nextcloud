@@ -56,6 +56,7 @@ public interface NextcloudRestClient {
      */
     @POST
     @Path("remote.php/dav/systemtags")
+    @Consumes(MediaType.APPLICATION_JSON)
     Response createNewGlobalSystemTag(CreateSystemTagRequest req);
 
     /**
@@ -77,7 +78,6 @@ public interface NextcloudRestClient {
     @GET
     @Path("/ocs/v1.php/cloud/users/{userid}")
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     OCSMessage<NextcloudUser> getUserInfo(@PathParam("userid") String userId);
 
     /**
@@ -100,6 +100,7 @@ public interface NextcloudRestClient {
      */
     @POST
     @Path("remote.php/dav/comments/{type}/{objectId}")
+    @Consumes(MediaType.APPLICATION_JSON)
     void addComment(@PathParam("type") String type, @PathParam("objectId") String objectId,
             AddCommentRequest request);
 

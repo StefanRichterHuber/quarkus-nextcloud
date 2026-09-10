@@ -2,6 +2,7 @@ package io.github.stefanrichterhuber.nextcloudlib.other;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
 import java.util.List;
@@ -60,6 +61,16 @@ public class NextcloudContactTest {
                 .filter(c -> c.getEmails().stream().anyMatch(m -> m.getValue().equals("kevin@example.com"))).findFirst()
                 .orElse(null);
         assertNotNull(createdCard);
+
+        // Delete contact
+        service.deleteContact(contacts, createdCard);
+
+        // Card should no longer exist
+        cards = service.fetchContacts(contacts);
+        createdCard = cards.stream()
+                .filter(c -> c.getEmails().stream().anyMatch(m -> m.getValue().equals("kevin@example.com"))).findFirst()
+                .orElse(null);
+        assertNull(createdCard);
 
     }
 }

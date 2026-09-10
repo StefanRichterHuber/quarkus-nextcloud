@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.xml.namespace.QName;
@@ -21,8 +24,8 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.transform.sax.SAXSource;
 
+import org.apache.commons.lang3.math.NumberUtils;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.faulttolerance.Retry;
 import org.jboss.logging.Logger;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -42,6 +45,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchQu
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SardineDataSource;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Condition;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.FileSelector;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Order;
@@ -59,6 +63,19 @@ import jakarta.xml.bind.JAXBException;
 
 @ApplicationScoped
 public class NextcloudFileService {
+    /**
+     * {@link JAXBContext} instances are thread-safe and expensive to create, so the
+     * one used to unmarshal WebDAV multistatus search responses is built once.
+     */
+    private static final JAXBContext MULTISTATUS_JAXB_CONTEXT;
+    static {
+        try {
+            MULTISTATUS_JAXB_CONTEXT = JAXBContext.newInstance(Multistatus.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     @Inject
     Logger logger;
 
@@ -374,10 +391,13 @@ public class NextcloudFileService {
             final String contentType = davResource.getContentType();
             final Date modified = davResource.getModified();
             final Long contentLength = davResource.getContentLength();
-            final Integer fileId = Optional.ofNullable(davResource.getCustomProps().get("fileid"))
-                    .filter(str -> !str.isBlank())
-                    .map(Integer::parseInt).orElse(null);
             final String path = getWebDavFilePath(davResource.getHref().toString());
+            // Direct file version resources do not carry a 'fileid' property, but the id
+            // is part of the path (.../dav/versions/{user}/versions/{fileId}/{versionId})
+            final Integer fileId = Optional.ofNullable(davResource.getCustomProps().get("fileid"))
+                    .filter(NumberUtils::isParsable)
+                    .map(Integer::parseInt)
+                    .orElseGet(() -> parseFileIdFromVersionPath(path));
             final DataSource ds = new SardineDataSource(this.sardine, path, contentType);
 
             final String filePath = path.replace(getWebDavFilePath(null) + "/", "");
@@ -388,33 +408,94 @@ public class NextcloudFileService {
     }
 
     /**
+     * Pattern to extract the file id from an (absolute or relative) WebDav file
+     * version path of the form
+     * {@code .../remote.php/dav/versions/{user}/versions/{fileId}[/{versionId}]}.
+     */
+    private static final Pattern VERSION_PATH_PATTERN = Pattern
+            .compile(".*/remote\\.php/dav/versions/[^/]+/versions/(\\d+)(?:/(\\d+))?/?");
+
+    /**
+     * Extracts the file id from a WebDav file version path.
+     *
+     * @param path Absolute or relative version path
+     * @return File id, or {@code null} if the path is not a version path
+     */
+    private static Integer parseFileIdFromVersionPath(@Nullable String path) {
+        if (path == null) {
+            return null;
+        }
+        final Matcher matcher = VERSION_PATH_PATTERN.matcher(path);
+        return matcher.matches() ? Integer.valueOf(matcher.group(1)) : null;
+    }
+
+    /**
+     * Extracts the version id (the trailing path segment) from a WebDav file
+     * version
+     * path. Nextcloud names each version by the modification time (in epoch
+     * seconds)
+     * of the content it holds.
+     *
+     * @param path Absolute or relative version path
+     * @return Version id, or {@code null} if the path carries no version id
+     */
+    private static Long parseVersionIdFromPath(@Nullable String path) {
+        if (path == null) {
+            return null;
+        }
+        final Matcher matcher = VERSION_PATH_PATTERN.matcher(path);
+        return matcher.matches() && matcher.group(2) != null ? Long.valueOf(matcher.group(2)) : null;
+    }
+
+    /**
      * Returns all revisions of the given file
-     * 
+     *
      * @param srcFile File to read revisions
      * @return List of revisions as NextCloudFile
      */
     public List<NextcloudFile> listFileRevisions(@Nonnull NextcloudFile srcFile) throws IOException {
-        // For some strange reasone the latest file revision could not be downloaded
-        // from the list of revisions -> download by filename. Remove files with size -1
-        // (folder placeholders ?)
-        final List<NextcloudFile> result = listFileRevisions(srcFile.fileId()).stream()
-                .filter(f -> f.contentLength() >= 0).toList();
-        final Date latestRev = result.stream().filter(f -> f.modified() != null).map(f -> f.modified())
-                .max(Date::compareTo)
-                .orElse(null);
-        if (latestRev != null) {
-            return result.stream().map(file -> {
-                if (Objects.equals(file.modified(), latestRev)) {
-                    // Replace with latest file revision to ensure that the content is available for
-                    // the latest revision
-                    return srcFile;
-                } else {
-                    return (NextcloudFile) file;
-                }
-            }).toList();
-        } else {
-            return result;
+        // The versions endpoint returns the stored (past) versions of the file.
+        // Depending on the server it also includes a synthetic entry for the current
+        // version, named by the file's current modification time - but that entry has
+        // no downloadable content under the versions path (the current content only
+        // lives at the file's real path). Drop that entry (and any entry carrying the
+        // current etag) and append srcFile instead, so the current revision is always
+        // present exactly once, with working content, as the last (newest) element.
+        final Long currentVersionId = srcFile.modified() != null ? srcFile.modified().getTime() / 1000L : null;
+
+        final List<NextcloudFile> revisions = listFileRevisions(srcFile.fileId()).stream()
+                // Drop folder placeholders (size -1).
+                .filter(f -> f.contentLength() != null && f.contentLength() >= 0)
+                .filter(f -> !isCurrentVersionEntry(f, srcFile, currentVersionId))
+                .sorted(Comparator.comparing(NextcloudFile::modified,
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        revisions.add(srcFile);
+        return List.copyOf(revisions);
+    }
+
+    /**
+     * Tells whether a revision returned by the versions endpoint actually
+     * represents
+     * the current version of the file (rather than a stored past version). Such an
+     * entry is either tagged with the file's current etag or named by the file's
+     * current modification time.
+     *
+     * @param entry            Revision entry from the versions endpoint
+     * @param srcFile          Current version of the file
+     * @param currentVersionId {@code srcFile}'s modification time in epoch seconds,
+     *                         or
+     *                         {@code null} if unknown
+     * @return {@code true} if the entry is the current version
+     */
+    private static boolean isCurrentVersionEntry(@Nonnull NextcloudFile entry, @Nonnull NextcloudFile srcFile,
+            @Nullable Long currentVersionId) {
+        if (srcFile.etag() != null && Objects.equals(entry.etag(), srcFile.etag())) {
+            return true;
         }
+        final Long entryVersionId = parseVersionIdFromPath(entry.path());
+        return currentVersionId != null && Objects.equals(entryVersionId, currentVersionId);
     }
 
     /**
@@ -448,11 +529,20 @@ public class NextcloudFileService {
     }
 
     /**
-     * Gets the content of a file revision (== etag)
-     * 
+     * Gets a stored (past) revision of a file by its version id.
+     * <p>
+     * {@code revisionId} must be a version id as returned in
+     * {@link NextcloudFile#etag()} / the trailing path segment of a revision from
+     * {@link #listFileRevisions(NextcloudFile)} - i.e. the modification time in
+     * epoch
+     * seconds. The current version of a file is not addressable here; use
+     * {@link #getFileRevision(String, String)} or {@link #getFile(String)} for
+     * that.
+     *
      * @param fileId     ID of the file
-     * @param revisionId ID of the reviion
-     * @return
+     * @param revisionId Version id of the revision
+     * @return The revision, or {@code null} if the server returned no resource
+     * @throws IOException if the revision does not exist or cannot be read
      */
     public NextcloudFile getFileRevision(long fileId, @Nonnull String revisionId) throws IOException {
         final String user = this.getCurrentUser();
@@ -476,11 +566,19 @@ public class NextcloudFileService {
         if (revisionId == null || revisionId.isBlank()) {
             return latest;
         }
-        if (latest != null) {
-            return getFileRevision(latest.fileId(), revisionId);
-        } else {
+        if (latest == null) {
             return null;
         }
+        final String currentVersionId = latest.modified() != null
+                ? Long.toString(latest.modified().getTime() / 1000L)
+                : null;
+        if (revisionId.equals(latest.etag()) || revisionId.equals(currentVersionId)) {
+            // The requested revision is the current version of the file. Its content is
+            // only downloadable from the file's real path, not from the versions
+            // endpoint, so return the live file directly.
+            return latest;
+        }
+        return getFileRevision(latest.fileId(), revisionId);
     }
 
     /**
@@ -525,26 +623,22 @@ public class NextcloudFileService {
     }
 
     /**
-     * Returns the File revision for a given revision date. Files are cached for
-     * better performance
+     * Returns the File revision for a given revision date.
      * 
      * @param path             File path
      * @param modificationDate Modification date
      * @return File found
      */
-    @Retry(maxRetries = 4)
     public NextcloudFile getFileByModifyDate(@Nonnull String path, @Nullable Date modificationDate) throws IOException {
         if (modificationDate == null || modificationDate.getTime() == 0) {
             // Load latest revision
             final NextcloudFile result = this.getFile(path);
             return result;
         } else {
-            // Sorted by revision date
-            final List<NextcloudFile> revisions = this.listFileRevisions(path).stream()
-                    .filter(rev -> rev.modified() != null)
-                    .sorted((r1, r2) -> r1.modified().compareTo(r2.modified())).toList();
             // Find the revision with the the given modification date
-            NextcloudFile found = revisions.stream().filter(f -> modificationDate.equals(f.modified()))
+            final NextcloudFile found = this.listFileRevisions(path).stream()
+                    .filter(rev -> rev.modified() != null)
+                    .filter(f -> modificationDate.equals(f.modified()))
                     .findFirst()
                     .orElse(null);
 
@@ -579,7 +673,27 @@ public class NextcloudFileService {
     }
 
     /**
-     * List all files in the given path with the given selector applied
+     * Lists all file in the given folder with the given
+     * 
+     * @param path  Relative file path. Null for root dir
+     * @param depth List depth. -1 for infinite recursion
+     * @param tag   System tag to search for
+     * @return List of Nextcloud files found
+     * @throws IOException
+     */
+    public List<NextcloudFile> listFilesBySystemTag(@Nullable String path, int depth, @Nonnull SystemTag tag)
+            throws IOException {
+        if (tag == null) {
+            throw new IllegalArgumentException("System tag must not be null");
+        }
+        final FilterRule fr = new FilterRule(Property.SYSTEM_TAG_ID, Integer.toString(tag.id()));
+        final List<NextcloudFile> result = listFiles(path, depth, List.of(fr));
+        return result;
+    }
+
+    /**
+     * List all files in the given path with the given selector applied (only
+     * FAVORITE and SYSTEM_TAG_ID are supported as filter rules)
      * 
      * @param path  Relative file path. Null for root dir
      * @param depth List depth. -1 for infinite recursion
@@ -587,7 +701,8 @@ public class NextcloudFileService {
      * @return List of Nextcloud files found
      * @throws IOException
      */
-    public List<NextcloudFile> listFiles(@Nullable String path, int depth, List<FilterRule> rules) throws IOException {
+    protected List<NextcloudFile> listFiles(@Nullable String path, int depth, List<FilterRule> rules)
+            throws IOException {
         if (rules == null || rules.isEmpty()) {
             return listFiles(path, depth);
         }
@@ -609,7 +724,8 @@ public class NextcloudFileService {
     }
 
     /**
-     * List alle files in the given path with the given selector applied
+     * List alle files in the given path with the given selector applied (only
+     * FAVORITE and SYSTEM_TAG_ID are supported as filter rules)
      * 
      * @param path     Relative file path. Null for root dir
      * @param selector Properties to select and additional filter conditions to
@@ -618,7 +734,7 @@ public class NextcloudFileService {
      * @return FileQueryResult with the result
      * @throws IOException
      */
-    public FileQueryResult listFiles(@Nullable String path, int depth, @Nonnull FileSelector selector)
+    protected FileQueryResult listFiles(@Nullable String path, int depth, @Nonnull FileSelector selector)
             throws IOException {
         final String target = getWebDavFilePath(path);
 
@@ -710,8 +826,7 @@ public class NextcloudFileService {
             final SAXSource saxSource = new SAXSource(
                     spf.newSAXParser().getXMLReader(),
                     new InputSource(new StringReader(result)));
-            final JAXBContext context = JAXBContext.newInstance(Multistatus.class);
-            final Multistatus status = (Multistatus) context.createUnmarshaller().unmarshal(saxSource);
+            final Multistatus status = (Multistatus) MULTISTATUS_JAXB_CONTEXT.createUnmarshaller().unmarshal(saxSource);
 
             return FileQueryResult.of(status);
         } catch (JAXBException | ParserConfigurationException | SAXException e) {
@@ -806,6 +921,17 @@ public class NextcloudFileService {
             throws IOException {
         final String lockTocken = lock != null ? lock.token() : null;
         uploadFile(path, contentType, content, etag, lockTocken);
+    }
+
+    /**
+     * Deletes the file
+     * 
+     * @param path Relative path of the file
+     * @throws IOException
+     */
+    public void deleteFile(String path)
+            throws IOException {
+        deleteFile(path, (String) null, (String) null);
     }
 
     /**

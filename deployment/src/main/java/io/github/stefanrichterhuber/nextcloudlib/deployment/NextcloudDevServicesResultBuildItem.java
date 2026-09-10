@@ -79,9 +79,18 @@ public class NextcloudDevServicesResultBuildItem {
             "OCA\\WebhookListeners\\BackgroundJobs\\WebhookCall" };
 
     private static final Logger log = Logger.getLogger(NextcloudDevServicesResultBuildItem.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /**
+     * Runs the optional background webhook-worker job for the lifetime of the dev
+     * service. Uses a daemon thread so it never keeps the build/dev JVM alive.
+     */
     private final ScheduledExecutorService executorService = java.util.concurrent.Executors
-            .newSingleThreadScheduledExecutor();
+            .newSingleThreadScheduledExecutor(r -> {
+                final Thread t = new Thread(r, "nextcloud-devservice-webhook-worker");
+                t.setDaemon(true);
+                return t;
+            });
 
     /**
      * Starts the Nextcloud dev-service container and returns a
@@ -418,9 +427,8 @@ public class NextcloudDevServicesResultBuildItem {
         try {
             final String redirectUri = String.format("%s/apps/user_oidc/code", nextcloudUrl);
 
-            final SecureRandom random = new SecureRandom();
             final byte[] verifierBytes = new byte[48];
-            random.nextBytes(verifierBytes);
+            SECURE_RANDOM.nextBytes(verifierBytes);
             final String codeVerifier = Base64.getUrlEncoder().withoutPadding().encodeToString(verifierBytes);
             final MessageDigest digest = MessageDigest.getInstance("SHA-256");
             final byte[] challengeBytes = digest.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));

@@ -74,7 +74,7 @@ public interface NextcloudLoginFlowRestClient {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Path("login/v2/poll")
-    Response pollLoginFlowV2(@FormParam("token") String token);
+    NextcloudAppCredentials pollLoginFlowV2(@FormParam("token") String token);
 
     /**
      * Removes an app password.

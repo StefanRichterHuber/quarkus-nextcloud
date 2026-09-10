@@ -314,7 +314,7 @@ class NextcloudEventProcessor {
             buildInvokeMethod(cc, declaringClassName, methodName);
             buildEventsMethod(cc, events);
             buildRequestAuthTokenMethod(cc, tokenNeeded, provideAuth);
-            buildProvideAuthProviderMethod(cc, tokenNeeded, provideAuth);
+            buildProvideAuthProviderMethod(cc, provideAuth);
         }
 
         LOG.debugf("Generated invoker %s for %s#%s", invokerClassName, declaringClassName, methodName);
@@ -400,7 +400,7 @@ class NextcloudEventProcessor {
      * @param tokenNeeded value of the {@code tokenNeeded} annotation attribute
      * @param provideAuth value of the {@code provideAuth} annotation attribute
      */
-    private static void buildProvideAuthProviderMethod(ClassCreator cc, boolean tokenNeeded, boolean provideAuth) {
+    private static void buildProvideAuthProviderMethod(ClassCreator cc, boolean provideAuth) {
         MethodCreator mc = cc.getMethodCreator("provideAuthProvider", boolean.class);
         mc.returnBoolean(provideAuth);
     }

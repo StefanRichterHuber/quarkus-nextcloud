@@ -346,7 +346,6 @@ public interface NextcloudWebhookRestClient {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     @Path("/ocs/v2.php/apps/webhook_listeners/api/v1/webhooks")
     OCSMessage<List<WebhookMessage>> listRegisteredWebhooks();
 
@@ -360,7 +359,6 @@ public interface NextcloudWebhookRestClient {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     @Path("/ocs/v2.php/apps/webhook_listeners/api/v1/webhooks/{webhookId}")
     OCSMessage<WebhookMessage> getWebhook(@PathParam("webhookId") String webhookId);
 

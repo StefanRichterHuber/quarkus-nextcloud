@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.stefanrichterhuber</groupId>
         <artifactId>nextcloudlib-parent</artifactId>
-        <version>2.0.2-SNAPSHOT</version>
+        <version>3.0.2-SNAPSHOT</version>
     </parent>
     <artifactId>nextcloudlib-integration-tests</artifactId>
     <name>Nextcloudlib - Integration Tests</name>
@@ -39,6 +39,17 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+            quarkus-jacoco-deployment (rather than just quarkus-jacoco) is required so the
+            build-time quarkus.jacoco.instrument-artifacts.* config below is processed - that
+            is what makes the extension instrument the nextcloudlib runtime jar, whose classes
+            are otherwise loaded parent-first and never see a JaCoCo probe.
+        -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jacoco-deployment</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

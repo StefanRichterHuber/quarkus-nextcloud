@@ -24,6 +24,8 @@ import jakarta.inject.Inject;
 @QuarkusTest
 @TestProfile(AppPasswordTestProfile.class)
 public class NextcloudSystemTagTest {
+    private static final String SYSTEM_TAG = "hello";
+
     private static final String ROOT_DIR = "/TESTDIR";
 
     private final static String TEST_TEXT1 = """
@@ -52,8 +54,10 @@ public class NextcloudSystemTagTest {
 
     @Test
     public void createSystemTagTest() throws IOException {
-        SystemTag st = tagService.addSystemTag("hello", true, true, true);
+        SystemTag st = tagService.addSystemTag(SYSTEM_TAG, true, true, true);
         assertNotNull(st);
+
+        assertTrue(tagService.listSystemTags().stream().anyMatch(t -> t.displayName().equals(SYSTEM_TAG)));
 
         fileService.createDirectories(ROOT_DIR);
         String filename = ROOT_DIR + "/" + UUID.randomUUID().toString() + ".md";
@@ -66,12 +70,19 @@ public class NextcloudSystemTagTest {
 
         List<SystemTag> fileTags = tagService.listSystemTagsOfFile(file);
         assertTrue(fileTags.contains(st));
+
+        // Search for files with the system tag
+        List<NextcloudFile> files = fileService.listFilesBySystemTag(ROOT_DIR, -1, st);
+        assertFalse(files.isEmpty());
+        assertTrue(files.stream().anyMatch(f -> f.path().endsWith(filename.substring(1))));
     }
 
     @Test
     public void removeSystemTagTest() throws IOException {
         SystemTag st = tagService.addSystemTag("hello122", true, true, true);
         assertNotNull(st);
+
+        assertTrue(tagService.listSystemTags().stream().anyMatch(t -> t.displayName().equals("hello122")));
 
         fileService.createDirectories(ROOT_DIR);
         String filename = ROOT_DIR + "/" + UUID.randomUUID().toString() + ".md";

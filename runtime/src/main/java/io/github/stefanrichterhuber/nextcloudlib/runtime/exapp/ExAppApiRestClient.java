@@ -350,7 +350,6 @@ public interface ExAppApiRestClient {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)
     @Path("/apps/app_api/api/v1/users")
     OCSMessage<List<String>> getUserList();
 
@@ -365,7 +364,7 @@ public interface ExAppApiRestClient {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     @Path("/ocs/v1.php/apps/app_api/ex-app/status")
-    OCSMessage reportAppInitProgress(AppInitProgress progress);
+    OCSMessage<Object> reportAppInitProgress(AppInitProgress progress);
 
     /**
      * Sets a single ExApp config or preference value.

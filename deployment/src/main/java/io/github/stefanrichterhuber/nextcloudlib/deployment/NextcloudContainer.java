@@ -237,6 +237,12 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
         return execResult;
     }
 
+    @Override
+    protected void containerIsStopped(com.github.dockerjava.api.command.InspectContainerResponse containerInfo) {
+        super.containerIsStopped(containerInfo);
+        occExecutor.shutdownNow();
+    }
+
     /**
      * Executes an {@code occ} command in the container. Wraps the command with the
      * correct PHP and user context ({@code www-data}) when the container is
