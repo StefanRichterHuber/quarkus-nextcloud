@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import jakarta.annotation.Nonnull;
 import jakarta.ws.rs.Consumes;
@@ -161,7 +162,7 @@ public interface NextcloudWebhookRestClient {
          * @param method      HTTP method Nextcloud uses to call the webhook endpoint
          * @param uri         target URL of the webhook endpoint
          * @param event       fully-qualified Nextcloud event class name
-         * @param filter      Additional event filters
+         * @param eventFilter Additional event filters
          * @param headers     additional HTTP headers sent with each call
          * @param authMethod  authentication method for the webhook call
          * @param authData    authentication credentials matching the chosen method
