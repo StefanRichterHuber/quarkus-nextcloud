@@ -158,6 +158,7 @@ public class NextcloudWebhookRegistrationService {
      */
     public void registerWebhooks() {
 
+        // TODO consider optional server side filters for events
         Set<String> eventClassNames = new HashSet<>();
         for (NextcloudEventInvoker invoker : invokers) {
             eventClassNames.addAll(Set.of(invoker.events()));

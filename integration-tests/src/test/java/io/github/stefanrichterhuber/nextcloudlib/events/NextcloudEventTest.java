@@ -16,11 +16,14 @@ import org.junit.jupiter.api.Test;
 
 import io.github.stefanrichterhuber.nextcloudlib.profiles.EventHandlerTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudSystemTagService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -61,6 +64,9 @@ public class NextcloudEventTest {
     @Inject
     NextcloudUserService userService;
 
+    @Inject
+    NextcloudSystemTagService systemTagService;
+
     /**
      * Waits for an event of the given class name and predicate to be received by
      * the test event
@@ -72,12 +78,39 @@ public class NextcloudEventTest {
      * @return The found event or null if not found
      * @throws InterruptedException If the thread is interrupted while waiting
      */
-    private NextcloudEvent<NextcloudEvent.FileEvent> waitForEvent(String className,
+    private NextcloudEvent<NextcloudEvent.FileEvent> waitForFileEvent(String className,
             Predicate<NextcloudEvent<NextcloudEvent.FileEvent>> predicate,
             int timeoutSeconds) throws InterruptedException {
         int rounds = timeoutSeconds;
         while (rounds > 0) {
             for (NextcloudEvent<NextcloudEvent.FileEvent> event : testEventHandlers.getReceivedFileEvents()) {
+                if (event.event().className().equals(className) && predicate.test(event)) {
+                    return event;
+                }
+            }
+            Thread.sleep(1000);
+            rounds--;
+        }
+        return null;
+    }
+
+    /**
+     * Waits for an event of the given class name and predicate to be received by
+     * the test event
+     * handler and returns it if found within the timeout
+     * 
+     * @param className      The class name of the event to wait for
+     * @param predicate      The predicate to test the event against
+     * @param timeoutSeconds The timeout in seconds
+     * @return The found event or null if not found
+     * @throws InterruptedException If the thread is interrupted while waiting
+     */
+    private NextcloudEvent<NextcloudEvent.SystemTagEvent> waitForSystemTagEvent(String className,
+            Predicate<NextcloudEvent<NextcloudEvent.SystemTagEvent>> predicate,
+            int timeoutSeconds) throws InterruptedException {
+        int rounds = timeoutSeconds;
+        while (rounds > 0) {
+            for (NextcloudEvent<NextcloudEvent.SystemTagEvent> event : testEventHandlers.getReceivedSystemTagEvents()) {
                 if (event.event().className().equals(className) && predicate.test(event)) {
                     return event;
                 }
@@ -114,12 +147,12 @@ public class NextcloudEventTest {
 
     @Test
     public void testEventHandler() throws IOException, InterruptedException {
-        int timeoutSeconds = 30;
+        final int timeoutSeconds = 30;
         final String user = authProvider.getUser();
         fileService.createDirectories(ROOT_DIR);
 
         // First event should be triggered by the creation of the directory
-        final NextcloudEvent<NextcloudEvent.FileEvent> event1 = waitForEvent(NextcloudEvent.FileNodeCreatedEvent,
+        final NextcloudEvent<NextcloudEvent.FileEvent> event1 = waitForFileEvent(NextcloudEvent.FileNodeCreatedEvent,
                 event -> event.event().node().path().equals("/" + user + "/files" + ROOT_DIR), timeoutSeconds);
 
         assertNotNull(event1, "Node create event for creation of directory was not received");
@@ -130,7 +163,7 @@ public class NextcloudEventTest {
                 new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
 
         // Second event should be triggered by the creation of the file
-        final NextcloudEvent<NextcloudEvent.FileEvent> event2 = waitForEvent(NextcloudEvent.FileNodeCreatedEvent,
+        final NextcloudEvent<NextcloudEvent.FileEvent> event2 = waitForFileEvent(NextcloudEvent.FileNodeCreatedEvent,
                 event -> event.event().node().path().equals("/" + user + "/files" + filename), timeoutSeconds);
 
         assertNotNull(event2, "Node create event for creation of file was not received");
@@ -146,18 +179,60 @@ public class NextcloudEventTest {
 
         // Third event should be triggered by the deletion of the file
         fileService.deleteFile(filename);
-        final NextcloudEvent<NextcloudEvent.FileEvent> event3 = waitForEvent(NextcloudEvent.FileNodeDeletedEvent,
+        final NextcloudEvent<NextcloudEvent.FileEvent> event3 = waitForFileEvent(NextcloudEvent.FileNodeDeletedEvent,
                 event -> event.event().node().path().equals("/" + user + "/files" + filename), timeoutSeconds);
 
         assertNotNull(event3, "Node delete event for deletion of file was not received");
 
         // Fourth event should be triggered by the deletion of the directory
         fileService.deleteFile(ROOT_DIR);
-        final NextcloudEvent<NextcloudEvent.FileEvent> event4 = waitForEvent(NextcloudEvent.FileNodeDeletedEvent,
+        final NextcloudEvent<NextcloudEvent.FileEvent> event4 = waitForFileEvent(NextcloudEvent.FileNodeDeletedEvent,
                 event -> event.event().node().path().equals("/" + user + "/files" + ROOT_DIR), timeoutSeconds);
 
         assertNotNull(event4, "Node delete event for deletion of folder was not received");
+    }
 
+    @Test
+    public void testSystemTagAssignedEvent() throws IOException, InterruptedException {
+        final int timeoutSeconds = 30;
+        fileService.createDirectories(ROOT_DIR);
+
+        final String rawFileName = UUID.randomUUID().toString() + "-test.md";
+        final String filename = ROOT_DIR + "/" + rawFileName;
+        fileService.uploadFile(filename, "text/markdown",
+                new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
+
+        final NextcloudFile file = fileService.getFile(filename);
+        assertNotNull(file, "File was not found after upload");
+        try {
+            final SystemTag tag = systemTagService.addSystemTag("test-tag-1", true, true, true);
+            systemTagService.addTagToFile(file, tag);
+
+            // Wait for the system tag assigned event
+            final NextcloudEvent<NextcloudEvent.SystemTagEvent> event = waitForSystemTagEvent(
+                    NextcloudEvent.SystemTagAssignedEvent,
+                    e -> e.event().objectIds().contains(file.fileId().toString())
+                            && e.event().tagIds().contains(tag.id()),
+                    timeoutSeconds);
+
+            assertNotNull(event, "System tag assigned event was not received");
+
+            // Unassign system tag
+            systemTagService.removeTagFromFile(file, tag);
+
+            // Wait for the system tag unassigned event
+            final NextcloudEvent<NextcloudEvent.SystemTagEvent> unassignEvent = waitForSystemTagEvent(
+                    NextcloudEvent.SystemTagUnassignedEvent,
+                    e -> e.event().objectIds().contains(file.fileId().toString())
+                            && e.event().tagIds().contains(tag.id()),
+                    timeoutSeconds);
+            assertNotNull(unassignEvent, "System tag unassigned event was not received");
+
+            // Clean up
+        } finally {
+            fileService.deleteFile(filename);
+            fileService.deleteFile(ROOT_DIR);
+        }
     }
 
 }

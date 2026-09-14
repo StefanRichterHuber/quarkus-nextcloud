@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
+import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,15 +11,20 @@ import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpressionResolver;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.PHPMongoQueryParser;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.PHPMongoQueryParser.CompiledFilter;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.DefaultNextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookBuildConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRecorder;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrationService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookSecretHolder;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanBuildItem;
@@ -128,13 +134,14 @@ class NextcloudEventProcessor {
                         .orElse(false);
                 final boolean provideAuth = Optional.ofNullable(ann.value("provideAuth")).map(av -> av.asBoolean())
                         .orElse(false);
+                final String filter = Optional.ofNullable(ann.value("filter")).map(av -> av.asString()).orElse("");
 
                 LOG.debugf("Discovered @OnNextcloudEvent handler: %s -> %s", location, eventClassNames);
 
                 handlers.produce(new NextcloudEventHandlerBuildItem(
                         method.declaringClass().name().toString(),
                         method.name(),
-                        eventClassNames, tokenNeeded, provideAuth));
+                        eventClassNames, tokenNeeded, provideAuth, filter));
             }
         }
     }
@@ -193,7 +200,8 @@ class NextcloudEventProcessor {
         for (NextcloudEventHandlerBuildItem handler : handlers) {
             generateInvoker(classOutput, handler.getDeclaringClassName(),
                     handler.getMethodName(),
-                    handler.getEventClassNames(), handler.isTokenNeeded(), handler.isProvideAuth());
+                    handler.getEventClassNames(), handler.isTokenNeeded(), handler.isProvideAuth(),
+                    handler.getFilter());
         }
     }
 
@@ -301,7 +309,7 @@ class NextcloudEventProcessor {
      * @return the fully-qualified name of the generated invoker class
      */
     private static String generateInvoker(ClassOutput classOutput, String declaringClassName,
-            String methodName, String[] events, boolean tokenNeeded, boolean provideAuth) {
+            String methodName, String[] events, boolean tokenNeeded, boolean provideAuth, String filter) {
         String invokerClassName = declaringClassName + "_" + methodName + "_NCInvoker";
 
         try (ClassCreator cc = ClassCreator.builder()
@@ -315,6 +323,8 @@ class NextcloudEventProcessor {
             buildEventsMethod(cc, events);
             buildRequestAuthTokenMethod(cc, tokenNeeded, provideAuth);
             buildProvideAuthProviderMethod(cc, provideAuth);
+            buildMatchesMethod(cc, filter);
+            buildFilterMethod(cc, filter);
         }
 
         LOG.debugf("Generated invoker %s for %s#%s", invokerClassName, declaringClassName, methodName);
@@ -352,6 +362,88 @@ class NextcloudEventProcessor {
                 mc.getMethodParam(0));
 
         mc.returnVoid();
+    }
+
+    /**
+     * 
+     * Generates the {@code filter()} method that returns the filter expression as a
+     * string.
+     * 
+     * @param cc
+     * @param filter
+     */
+    private static void buildFilterMethod(ClassCreator cc, String filter) {
+        MethodCreator filterMc = cc.getMethodCreator("filter", String.class);
+
+        if (filter == null || filter.isBlank()) {
+            filterMc.returnValue(filterMc.load(""));
+        } else {
+            final ResultHandle resolvedFilterForFilter = filterMc.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(FilterExpressionResolver.class, "resolve", String.class, String.class),
+                    filterMc.load(filter));
+            filterMc.returnValue(resolvedFilterForFilter);
+        }
+    }
+
+    /**
+     * Generates the {@code matches(JsonNode)} method that evaluates the filter
+     * expression declared on the {@link OnNextcloudEvent} annotation.
+     * 
+     * @param cc
+     * @param filter
+     */
+    private static void buildMatchesMethod(ClassCreator cc, String filter) {
+        /**
+         * // If filter is empty, no additional field are needed, just return true in
+         * matches()
+         * private CompiledFilter filter = PHPMongoQueryParser.compile("filter
+         * expression");
+         * 
+         * public boolean matches(JsonNode event) {
+         * 
+         * // If filter is empty, just return true, otherwise evaluate the filter
+         * against the event's payload
+         * return filter.matches(event);
+         * }
+         * 
+         * public boolean filter() {
+         * return "filter expression";
+         * }
+         */
+
+        MethodCreator mc = cc.getMethodCreator("matches", boolean.class, JsonNode.class);
+        if (filter == null || filter.isBlank()) {
+            mc.returnValue(mc.load(true));
+        } else {
+
+            // Build the 'matches' method
+            // Implementation for non-empty filter
+            FieldCreator fc = cc.getFieldCreator("filter", CompiledFilter.class);
+            fc.setModifiers(Modifier.PRIVATE | Modifier.FINAL); // private final
+
+            // CompiledFilter can't be embedded as a bytecode constant, so the field is
+            // populated in the constructor: the raw filter string is re-compiled at
+            // runtime, after resolving any ${...} config property expressions it
+            // contains, so filter conditions can be overridden per deployment without
+            // a rebuild.
+            MethodCreator ctor = cc.getConstructorCreator(new Class<?>[0]);
+            ResultHandle self = ctor.getThis();
+            ctor.invokeSpecialMethod(MethodDescriptor.ofConstructor(Object.class), self);
+            ResultHandle resolvedFilterForConstructor = ctor.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(FilterExpressionResolver.class, "resolve", String.class, String.class),
+                    ctor.load(filter));
+            ResultHandle compiledFilter = ctor.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(PHPMongoQueryParser.class, "compile", CompiledFilter.class,
+                            String.class),
+                    resolvedFilterForConstructor);
+            ctor.writeInstanceField(fc.getFieldDescriptor(), self, compiledFilter);
+            ctor.returnVoid();
+
+            mc.returnValue(mc.invokeInterfaceMethod(
+                    MethodDescriptor.ofMethod(CompiledFilter.class, "test", boolean.class, JsonNode.class),
+                    mc.readInstanceField(fc.getFieldDescriptor(), mc.getThis()),
+                    mc.getMethodParam(0)));
+        }
     }
 
     /**

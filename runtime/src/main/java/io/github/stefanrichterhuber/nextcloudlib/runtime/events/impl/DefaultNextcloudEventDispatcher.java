@@ -6,6 +6,9 @@ import java.util.concurrent.Executor;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
@@ -44,6 +47,9 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
     @Inject
     ManagedExecutor scheduledExecutorService;
 
+    @Inject
+    ObjectMapper objectMapper;
+
     /**
      * Iterates all known {@link NextcloudEventInvoker} instances and, for each one
      * that is registered for the event's class name, submits the invocation to the
@@ -58,14 +64,18 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
         final Executor executor = new CredentialsAwareRequestScopedExecutor(scheduledExecutorService,
                 credentials);
         final String eventClass = event.event().className();
+        final JsonNode eventNode = objectMapper.valueToTree(event);
+
         for (NextcloudEventInvoker invoker : invokers) {
-            for (String invokerEvent : invoker.events()) {
-                if (Objects.equals(eventClass, invokerEvent)) {
-                    try {
-                        executor.execute(() -> invoker.invoke(event));
-                        break;
-                    } catch (Exception e) {
-                        logger.errorf(e, "Failed to dispatch event <%s>", event);
+            if (invoker.matches(eventNode)) {
+                for (String invokerEvent : invoker.events()) {
+                    if (Objects.equals(eventClass, invokerEvent)) {
+                        try {
+                            executor.execute(() -> invoker.invoke(event));
+                            break;
+                        } catch (Exception e) {
+                            logger.errorf(e, "Failed to dispatch event <%s>", event);
+                        }
                     }
                 }
             }

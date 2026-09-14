@@ -1,6 +1,5 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
-
 import io.quarkus.builder.item.MultiBuildItem;
 
 /**
@@ -17,21 +16,29 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
     private final boolean tokenNeeded;
 
     private final boolean provideAuth;
+    private final String filter;
 
     /**
-     * @param declaringClassName fully-qualified name of the CDI bean class that declares the handler
-     * @param methodName         name of the {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent}-annotated method
-     * @param eventClassNames    fully-qualified Nextcloud PHP event class names the method listens for
-     * @param tokenNeeded        {@code true} when a temporary auth token must be fetched from Nextcloud
-     * @param provideAuth        {@code true} when a {@code NextcloudAuthProvider} should be placed in the request context
+     * @param declaringClassName fully-qualified name of the CDI bean class that
+     *                           declares the handler
+     * @param methodName         name of the
+     *                           {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent}-annotated
+     *                           method
+     * @param eventClassNames    fully-qualified Nextcloud PHP event class names the
+     *                           method listens for
+     * @param tokenNeeded        {@code true} when a temporary auth token must be
+     *                           fetched from Nextcloud
+     * @param provideAuth        {@code true} when a {@code NextcloudAuthProvider}
+     *                           should be placed in the request context
      */
     public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, String[] eventClassNames,
-            boolean tokenNeeded, boolean provideAuth) {
+            boolean tokenNeeded, boolean provideAuth, String filter) {
         this.declaringClassName = declaringClassName;
         this.methodName = methodName;
         this.eventClassNames = eventClassNames;
         this.tokenNeeded = tokenNeeded;
         this.provideAuth = provideAuth;
+        this.filter = filter;
     }
 
     /**
@@ -52,7 +59,8 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
     }
 
     /**
-     * @return {@code true} when a temporary Nextcloud auth token must be requested for the
+     * @return {@code true} when a temporary Nextcloud auth token must be requested
+     *         for the
      *         triggering user before dispatching the event
      */
     public boolean isTokenNeeded() {
@@ -60,10 +68,19 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
     }
 
     /**
-     * @return {@code true} when a {@code NextcloudAuthProvider} carrying the triggering
-     *         user's token should be placed in the request context before the handler is called
+     * @return {@code true} when a {@code NextcloudAuthProvider} carrying the
+     *         triggering
+     *         user's token should be placed in the request context before the
+     *         handler is called
      */
     public boolean isProvideAuth() {
         return provideAuth;
+    }
+
+    /**
+     * @return the filter for the event handler
+     */
+    public String getFilter() {
+        return filter;
     }
 }

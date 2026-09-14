@@ -10,7 +10,8 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvi
 /**
  * Marks a CDI bean method as a Nextcloud webhook event handler.
  *
- * <p>The annotated method must declare exactly one parameter of type
+ * <p>
+ * The annotated method must declare exactly one parameter of type
  * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent}.
  * The extension automatically registers a webhook listener with Nextcloud
  * on startup and dispatches matching events to the method.
@@ -45,7 +46,22 @@ public @interface OnNextcloudEvent {
      * is placed in the request context before the handler is invoked.
      * Setting this to {@code true} implicitly enables {@link #tokenNeeded()}.
      *
-     * @return {@code true} to expose a {@link NextcloudAuthProvider} in the request context
+     * @return {@code true} to expose a {@link NextcloudAuthProvider} in the request
+     *         context
      */
     boolean provideAuth() default false;
+
+    /**
+     * An optional filter expression to further restrict which events are dispatched
+     * to the handler. e.g.: {@code "{ "user.uid": "admin" }" }. Supports property
+     * expressions like
+     * {@code  "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }" }
+     * 
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/stable/admin_manual/webhook_listeners/index.html">Nextcloud
+     *      Webhook Listeners</a> for the mongo db like filter syntax.
+     * 
+     * @return
+     */
+    String filter() default "";
 }
