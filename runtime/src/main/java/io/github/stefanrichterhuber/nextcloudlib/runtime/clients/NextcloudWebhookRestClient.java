@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient.WebhookMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import jakarta.annotation.Nonnull;
 import jakarta.ws.rs.Consumes;
