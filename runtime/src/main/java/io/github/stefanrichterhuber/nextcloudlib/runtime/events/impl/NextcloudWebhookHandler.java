@@ -2,19 +2,18 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.quarkus.arc.Arc;
-import io.quarkus.arc.ManagedContext;
 import io.vertx.ext.web.RoutingContext;
 
 /**
@@ -57,6 +56,7 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         dispatcher = Arc.container()
                 .select(NextcloudEventDispatcher.class)
                 .get();
+
         mapper = Arc.container().select(ObjectMapper.class).get();
     }
 
@@ -99,6 +99,9 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
             return;
         }
 
+        // Extract the id of the handler from the path (last path segment!)
+        final String path = ctx.normalizedPath();
+        final String handlerId = path.substring(path.lastIndexOf("/") + 1);
         // Read body asynchronously — custom Vert.x routes don't go through the
         // Quarkus REST BodyHandler, so ctx.body() is not pre-populated.
         ctx.request().body()
@@ -118,20 +121,9 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
                         if (event.authentication() != null && event.authentication().trigger() != null) {
                             final NextcloudUserCredentials credentials = event.authentication().trigger()
                                     .toUserCredentials();
-                            dispatcher.dispatch(event, credentials);
+                            dispatcher.dispatch(handlerId, event, credentials);
                         } else {
-                            // No authentication given, use NextcloudAuthProvider
-                            final ManagedContext managedContext = Arc.container().requestContext();
-                            managedContext.activate();
-                            final NextcloudAuthProvider authProvider = Arc.container()
-                                    .instance(NextcloudAuthProvider.class)
-                                    .get();
-                            try {
-                                NextcloudUserCredentials credentials = authProvider.getCredentials();
-                                dispatcher.dispatch(event, credentials);
-                            } finally {
-                                managedContext.terminate();
-                            }
+                            dispatcher.dispatch(handlerId, event, null);
                         }
                         ctx.response().setStatusCode(200).end();
                     } catch (Exception e) {

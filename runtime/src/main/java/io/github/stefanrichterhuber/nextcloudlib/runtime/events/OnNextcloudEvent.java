@@ -34,28 +34,19 @@ public @interface OnNextcloudEvent {
 
     /**
      * When {@code true}, a temporary auth token for the triggering user is
-     * requested from Nextcloud before the handler is invoked.
+     * requested from Nextcloud before the handler is invoked. When provided, it is
+     * injected into the current {@link NextcloudAuthProvider}
      *
      * @return {@code true} to request a temporary auth token
      */
-    boolean tokenNeeded() default false;
-
-    /**
-     * When {@code true}, a temporary auth token for the triggering user is
-     * requested and a {@link NextcloudAuthProvider} instance carrying that token
-     * is placed in the request context before the handler is invoked.
-     * Setting this to {@code true} implicitly enables {@link #tokenNeeded()}.
-     *
-     * @return {@code true} to expose a {@link NextcloudAuthProvider} in the request
-     *         context
-     */
-    boolean provideAuth() default false;
+    boolean requestAuthToken() default false;
 
     /**
      * An optional filter expression to further restrict which events are dispatched
      * to the handler. e.g.: {@code "{ "user.uid": "admin" }" }. Supports property
      * expressions like
-     * {@code  "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }" }
+     * {@code  "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }" } <br>
+     * As of now, these filters are purly client side!
      * 
      * @see <a href=
      *      "https://docs.nextcloud.com/server/stable/admin_manual/webhook_listeners/index.html">Nextcloud

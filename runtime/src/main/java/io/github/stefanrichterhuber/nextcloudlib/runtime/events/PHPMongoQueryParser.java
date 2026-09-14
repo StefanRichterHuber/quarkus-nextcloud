@@ -47,6 +47,10 @@ public final class PHPMongoQueryParser {
         }
     }
 
+    private PHPMongoQueryParser() {
+        // Intentionally empty
+    }
+
     public static CompiledFilter compile(String filterJson) {
         try {
             return compile(MAPPER.readTree(filterJson));
@@ -403,9 +407,11 @@ public final class PHPMongoQueryParser {
             if (position != null && position < node.size()) {
                 resolve(node.get(position), segments, index + 1, out);
             } else {
-                // implicit traversal: "event.tags.name" over an array of objects
+                // implicit traversal: "event.tags.name" over an array of objects.
+                // The current segment was not consumed as an array index, so it must
+                // still be applied to each element (do not advance index here).
                 for (JsonNode element : node) {
-                    resolve(element, segments, index + 1, out);
+                    resolve(element, segments, index, out);
                 }
             }
             return;

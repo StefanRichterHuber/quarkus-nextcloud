@@ -1,7 +1,5 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 
@@ -37,28 +35,6 @@ public interface NextcloudEventInvoker {
      * @return {@code true} when a temporary auth token is required
      */
     boolean requestAuthToken();
-
-    /**
-     * Whether a
-     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider}
-     * instance carrying the triggering user's token should be placed in the
-     * request context before the handler is called.
-     *
-     * @return {@code true} when an {@code NextcloudAuthProvider} should be provided
-     */
-    boolean provideAuthProvider();
-
-    /**
-     * Checks whether the given event matches the filter expression declared on the
-     * {@link OnNextcloudEvent} annotation.
-     * 
-     * @param event the Nextcloud event to check
-     * @return {@code true} if the event matches the filter expression,
-     *         {@code false} otherwise
-     */
-    default boolean matches(JsonNode event) {
-        return true;
-    }
 
     /**
      * Returns the filter expression declared on the {@link OnNextcloudEvent}

@@ -1,35 +1,23 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.RequestScopedExecutor;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
 /**
- * Default {@link NextcloudEventDispatcher} implementation that fans out an
- * incoming event to every {@link NextcloudEventInvoker} whose declared event
- * list contains the event's class name.
- *
- * <p>
- * Each matching invoker is executed on a {@link ManagedExecutor} thread
- * wrapped in a {@code CredentialsAwareRequestScopedExecutor} so that the CDI
- * request context is properly activated and the triggering user's credentials
- * are available inside the handler.
- *
+ * Determines the correct invoker and dispatches the event handling using the
+ * {@link #scheduledExecutorService}
  * <p>
  * Annotated with {@link DefaultBean} so applications can provide their own
  * alternative implementation without needing to {@code @Specializes} this one.
@@ -39,46 +27,35 @@ import jakarta.inject.Inject;
 public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher {
 
     @Inject
-    Instance<NextcloudEventInvoker> invokers;
-
-    @Inject
     Logger logger;
 
     @Inject
     ManagedExecutor scheduledExecutorService;
 
     @Inject
-    ObjectMapper objectMapper;
+    NextcloudWebhookRegistrationService registrationService;
 
-    /**
-     * Iterates all known {@link NextcloudEventInvoker} instances and, for each one
-     * that is registered for the event's class name, submits the invocation to the
-     * managed executor. Errors thrown by individual invokers are caught and logged
-     * so that a failing handler does not prevent other handlers from running.
-     *
-     * @param event       the event received from Nextcloud
-     * @param credentials credentials identifying the user that triggered the event
-     */
     @Override
-    public void dispatch(NextcloudEvent<? extends Event> event, NextcloudUserCredentials credentials) {
-        final Executor executor = new CredentialsAwareRequestScopedExecutor(scheduledExecutorService,
-                credentials);
-        final String eventClass = event.event().className();
-        final JsonNode eventNode = objectMapper.valueToTree(event);
+    public void dispatch(String handlerId, NextcloudEvent<? extends Event> event,
+            NextcloudUserCredentials credentials) {
+        final boolean tokenProvided = credentials != null;
+        final Executor executor = tokenProvided
+                ? new CredentialsAwareRequestScopedExecutor(scheduledExecutorService,
+                        credentials)
+                : new RequestScopedExecutor(scheduledExecutorService);
 
-        for (NextcloudEventInvoker invoker : invokers) {
-            if (invoker.matches(eventNode)) {
-                for (String invokerEvent : invoker.events()) {
-                    if (Objects.equals(eventClass, invokerEvent)) {
-                        try {
-                            executor.execute(() -> invoker.invoke(event));
-                            break;
-                        } catch (Exception e) {
-                            logger.errorf(e, "Failed to dispatch event <%s>", event);
-                        }
-                    }
-                }
-            }
+        final NextcloudEventInvoker invoker = handlerId != null
+                ? this.registrationService.getEventHandlerById(handlerId)
+                : null;
+        if (invoker == null) {
+            logger.warnf("No NextcloudEventInvoker found for id '%s'", handlerId);
+            return;
+        }
+
+        try {
+            executor.execute(() -> invoker.invoke(event));
+        } catch (Exception e) {
+            logger.errorf(e, "Failed to dispatch event <%s>", event);
         }
     }
 }

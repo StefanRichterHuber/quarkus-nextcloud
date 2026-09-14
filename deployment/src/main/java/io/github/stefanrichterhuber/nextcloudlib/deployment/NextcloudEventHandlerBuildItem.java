@@ -13,9 +13,8 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
     private final String declaringClassName;
     private final String methodName;
     private final String[] eventClassNames;
-    private final boolean tokenNeeded;
+    private final boolean requestAuthToken;
 
-    private final boolean provideAuth;
     private final String filter;
 
     /**
@@ -26,18 +25,15 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
      *                           method
      * @param eventClassNames    fully-qualified Nextcloud PHP event class names the
      *                           method listens for
-     * @param tokenNeeded        {@code true} when a temporary auth token must be
-     *                           fetched from Nextcloud
-     * @param provideAuth        {@code true} when a {@code NextcloudAuthProvider}
-     *                           should be placed in the request context
+     * @param requestAuthToken   {@code true} when a temporary auth token must be
+     *                           requeded from Nextcloud
      */
     public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, String[] eventClassNames,
-            boolean tokenNeeded, boolean provideAuth, String filter) {
+            boolean requestAuthToken, String filter) {
         this.declaringClassName = declaringClassName;
         this.methodName = methodName;
         this.eventClassNames = eventClassNames;
-        this.tokenNeeded = tokenNeeded;
-        this.provideAuth = provideAuth;
+        this.requestAuthToken = requestAuthToken;
         this.filter = filter;
     }
 
@@ -63,18 +59,8 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
      *         for the
      *         triggering user before dispatching the event
      */
-    public boolean isTokenNeeded() {
-        return tokenNeeded;
-    }
-
-    /**
-     * @return {@code true} when a {@code NextcloudAuthProvider} carrying the
-     *         triggering
-     *         user's token should be placed in the request context before the
-     *         handler is called
-     */
-    public boolean isProvideAuth() {
-        return provideAuth;
+    public boolean isRequestAuthToken() {
+        return requestAuthToken;
     }
 
     /**

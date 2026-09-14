@@ -2,14 +2,18 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAdmin;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
@@ -71,7 +75,13 @@ public class NextcloudWebhookRegistrationService {
     @Inject
     NextcloudExappAppConfig appConfig;
 
-    private final List<WebhookMessage> registeredWebhooks = new ArrayList<>();
+    @Inject
+    ObjectMapper objectMapper;
+
+    private record InvokerAndWebhookMessages(NextcloudEventInvoker invoker, List<WebhookMessage> webhooks) {
+    }
+
+    private final Map<String, InvokerAndWebhookMessages> invokersById = new ConcurrentHashMap<>();
 
     private String webhookUrl() {
         if (exappConfig.enabled()) {
@@ -105,30 +115,41 @@ public class NextcloudWebhookRegistrationService {
                 .build(NextcloudWebhookRestClient.class);
     }
 
-    private WebhookMessage buildMessage(String className) {
+    private WebhookMessage buildMessage(String id, String className, boolean tokenNeeded, JsonNode eventFilter) {
+        final List<String> tokenNeedList = tokenNeeded ? List.of("trigger") : List.of();
+        final String url = webhookUrl() + "/" + id;
+
         return WebhookMessage.createRegistryRequest(
                 HTTPMethod.POST,
-                webhookUrl(),
+                url,
                 className,
+                eventFilter,
                 Map.of(
                         "Content-Type", MediaType.APPLICATION_JSON,
                         "Accept", MediaType.APPLICATION_JSON),
                 AuthMethod.HEADER,
                 Map.of(config.header(), secretHolder.getSecret()),
-                new TokenNeeded(List.of(), List.of("trigger")));
+                new TokenNeeded(List.of(), tokenNeedList));
     }
 
     /**
      * Registers one new webhook for the given Nextcloud PHP event class name.
      *
-     * @param client    REST client configured for the Nextcloud instance
-     * @param className fully-qualified Nextcloud PHP event class name to listen for
+     * @param client      REST client configured for the Nextcloud instance
+     * @param id          Unique id of the webhook handler (== hash of its class
+     *                    name)
+     * @param className   fully-qualified Nextcloud PHP event class name to listen
+     *                    for
+     * @param tokenNeeded Request a auth token
+     * @param eventFilter Optional event filter
      * @return the registered {@link WebhookMessage} returned by Nextcloud, or
      *         {@code null} when registration fails
      */
-    private WebhookMessage registerOne(NextcloudWebhookRestClient client, String className) {
+    private WebhookMessage registerWebhook(NextcloudWebhookRestClient client, String id, String className,
+            boolean tokenNeeded,
+            JsonNode eventFilter) {
         try {
-            final WebhookMessage request = buildMessage(className);
+            final WebhookMessage request = buildMessage(id, className, tokenNeeded, eventFilter);
             final OCSMessage<WebhookMessage> response = client.registerWebhook(request);
             if (response.ocs().meta().statuscode() == 200) {
                 logger.infof("Registered webhook with id %s for event '%s' and method %s to '%s'",
@@ -150,61 +171,65 @@ public class NextcloudWebhookRegistrationService {
 
     /**
      * Registers webhooks for all event class names declared by the known
-     * {@link NextcloudEventInvoker} instances. Already-registered webhooks at the
-     * same callback URL are skipped unless
-     * {@link NextcloudWebhookConfig#alwaysRegister()} is {@code true}.
-     * Errors are caught and logged so that registration failures do not prevent
-     * the application from starting.
+     * {@link NextcloudEventInvoker} instances.
      */
     public void registerWebhooks() {
-
-        // TODO consider optional server side filters for events
-        Set<String> eventClassNames = new HashSet<>();
-        for (NextcloudEventInvoker invoker : invokers) {
-            eventClassNames.addAll(Set.of(invoker.events()));
-        }
-
-        if (eventClassNames.isEmpty()) {
-            return;
-        }
-
-        String url = webhookUrl();
-        NextcloudWebhookRestClient client = buildClient();
-
+        final NextcloudWebhookRestClient client = buildClient();
+        final List<WebhookMessage> registered = fetchExistingWebhooks(client);
+        final String webhookBaseUrl = webhookUrl();
         try {
-            OCSMessage<List<WebhookMessage>> listResponse = client.listRegisteredWebhooks();
-            if (listResponse.ocs().meta().statuscode() != 200) {
-                logger.errorf("Failed to list registered webhooks: %s",
-                        listResponse.ocs().meta().message());
-                return;
-            }
 
-            List<WebhookMessage> registered = listResponse.ocs().data();
-            if (registered == null) {
-                registered = List.of();
-            }
+            for (NextcloudEventInvoker invoker : invokers) {
+                final String invokerId = DigestUtils.sha256Hex(invoker.getClass().getName());
+                final String url = webhookBaseUrl + "/" + invokerId;
+                final List<String> events = List.of(invoker.events());
+                final String filter = invoker.filter();
+                final JsonNode eventFilterNode = filter != null && !filter.isEmpty()
+                        ? objectMapper.readValue(filter, JsonNode.class)
+                        : null;
 
-            for (String className : eventClassNames) {
-                WebhookMessage existing = registered.stream()
-                        .filter(w -> url.equals(w.uri()) && className.equals(w.event()))
-                        .findFirst()
-                        .orElse(null);
+                final List<WebhookMessage> webhooks = new ArrayList<>();
+                // Find all existing webhooks matching this event handler
+                List<WebhookMessage> matchingWebhooks = registered.stream()
+                        .filter(w -> w.uri().equals(url))
+                        .filter(w -> events.contains(w.event()))
+                        .filter(w -> Objects.equals(w.eventFilter(), eventFilterNode))
+                        .toList();
 
-                if (existing != null) {
+                if (!matchingWebhooks.isEmpty()) {
                     if (config.alwaysRegister()) {
-                        logger.infof("Re-registering webhook for %s at %s (alwaysRegister=true)",
-                                className, url);
-                        client.deleteWebhook(existing.id());
-                        existing = null;
+                        for (WebhookMessage existing : matchingWebhooks) {
+                            logger.infof("Re-registering webhook for %s at %s (nextcloud.webhook.alwaysRegister=true)",
+                                    existing.event(), url);
+                            client.deleteWebhook(existing.id());
+                        }
+                        matchingWebhooks = List.of();
                     } else {
-                        logger.infof("Webhook for %s already registered at %s", className, url);
+                        for (WebhookMessage existing : matchingWebhooks) {
+                            logger.infof(
+                                    "Webhook for %s already registered at %s (nextcloud.webhook.alwaysRegister=false)",
+                                    existing.event(), url);
+                            webhooks.add(existing);
+                        }
                     }
                 }
+                for (String event : events) {
+                    if (matchingWebhooks.stream().noneMatch(w -> Objects.equals(w.event(), event))) {
+                        final WebhookMessage result = this.registerWebhook(client, invokerId, event,
+                                invoker.requestAuthToken(),
+                                eventFilterNode);
+                        if (result != null) {
+                            webhooks.add(result);
+                            logger.infof("Successfully registered webhook with id %s for event '%s'", result.id(),
+                                    event);
+                        } else {
+                            logger.errorf("Failed to register webhook with for event '%s'", event);
 
-                if (existing == null) {
-                    logger.debugf("Registering webhook for %s at %s", className, url);
-                    this.registeredWebhooks.add(registerOne(client, className));
+                        }
+                    }
                 }
+                final InvokerAndWebhookMessages handler = new InvokerAndWebhookMessages(invoker, webhooks);
+                this.invokersById.put(invokerId, handler);
             }
         } catch (WebApplicationException e) {
             logger.errorf(e,
@@ -216,27 +241,60 @@ public class NextcloudWebhookRegistrationService {
     }
 
     /**
+     * Fetches the existing webhooks for this url
+     * 
+     * @param client RestClient for webhook registration
+     * @return
+     */
+    private List<WebhookMessage> fetchExistingWebhooks(NextcloudWebhookRestClient client) {
+        final OCSMessage<List<WebhookMessage>> listResponse = client.listRegisteredWebhooks();
+        if (listResponse.ocs().meta().statuscode() != 200) {
+            logger.errorf("Failed to list registered webhooks: %s",
+                    listResponse.ocs().meta().message());
+            return List.of();
+        }
+        final List<WebhookMessage> registered = listResponse.ocs().data();
+        if (registered == null) {
+            return List.of();
+        }
+        final String url = webhookUrl();
+        return registered.stream().filter(w -> w.uri().startsWith(url)).toList();
+    }
+
+    /**
      * Deletes all webhooks that were registered during this application's lifetime,
      * provided {@link NextcloudWebhookConfig#deregisterWebhooksOnShutdown()}
      * is
      * {@code true}. Errors for individual deletions are caught and logged.
      */
     public void deleteRegisteredWebhooks() {
-
-        if (config.deregisterWebhooksOnShutdown() && !this.registeredWebhooks.isEmpty()) {
+        if (config.deregisterWebhooksOnShutdown() && !this.invokersById.isEmpty()) {
             final NextcloudWebhookRestClient client = buildClient();
-            logger.debugf("Deleteing registered webhooks: %s",
-                    this.registeredWebhooks.stream().map(m -> m.id()).collect(Collectors.joining(", ")));
 
-            for (WebhookMessage wm : this.registeredWebhooks) {
-                try {
-                    client.deleteWebhook(wm.id());
-                    logger.infof("Successfully deleted webhook with id %s", wm.id());
-                } catch (Exception e) {
-                    logger.errorf(e, "Failed to delete webhook with id %s", wm.id());
+            for (InvokerAndWebhookMessages invokersAndWebhookMessages : this.invokersById.values()) {
+                for (WebhookMessage wm : invokersAndWebhookMessages.webhooks()) {
+                    try {
+                        client.deleteWebhook(wm.id());
+                        logger.infof("Successfully deleted webhook with id %s",
+                                wm.id());
+                    } catch (Exception e) {
+                        logger.errorf(e, "Failed to delete webhook with id %s",
+                                wm.id());
+                    }
                 }
             }
+            this.invokersById.clear();
         }
+    }
+
+    /**
+     * Returns the stored invoker by its id
+     * 
+     * @param id ID of the Invoker (generated during registration of webhooks)
+     * @return Invoker found
+     */
+    public NextcloudEventInvoker getEventHandlerById(String id) {
+        return Optional.ofNullable(invokersById.get(id)).map(i -> i.invoker()).orElse(null);
     }
 
 }

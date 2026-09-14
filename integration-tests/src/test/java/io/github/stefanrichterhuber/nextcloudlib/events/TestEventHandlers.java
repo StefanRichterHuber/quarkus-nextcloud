@@ -14,7 +14,7 @@ public class TestEventHandlers {
     private final List<NextcloudEvent<NextcloudEvent.SystemTagEvent>> receivedSystemTagEvents = new CopyOnWriteArrayList<>();
 
     @OnNextcloudEvent(events = { NextcloudEvent.FileNodeCreatedEvent,
-            NextcloudEvent.FileNodeDeletedEvent }, filter = "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }")
+            NextcloudEvent.FileNodeDeletedEvent }, requestAuthToken = true, filter = "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }")
     public void onFileEvent(NextcloudEvent<NextcloudEvent.FileEvent> event) {
         receivedFileEvents.add(event);
     }

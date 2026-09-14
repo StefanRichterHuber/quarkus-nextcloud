@@ -161,6 +161,7 @@ public interface NextcloudWebhookRestClient {
          * @param method      HTTP method Nextcloud uses to call the webhook endpoint
          * @param uri         target URL of the webhook endpoint
          * @param event       fully-qualified Nextcloud event class name
+         * @param filter      Additional event filters
          * @param headers     additional HTTP headers sent with each call
          * @param authMethod  authentication method for the webhook call
          * @param authData    authentication credentials matching the chosen method
@@ -168,6 +169,7 @@ public interface NextcloudWebhookRestClient {
          * @return a new {@link WebhookMessage} ready to be sent to the registration API
          */
         public static WebhookMessage createRegistryRequest(HTTPMethod method, String uri, String event,
+                JsonNode eventFilter,
                 Map<String, String> headers,
                 AuthMethod authMethod, Map<String, String> authData, TokenNeeded tokenNeeded) {
             final ObjectMapper mapper = new ObjectMapper();
@@ -178,7 +180,7 @@ public interface NextcloudWebhookRestClient {
                     method,
                     uri,
                     event,
-                    null,
+                    eventFilter,
                     null,
                     headers,
                     authMethod,
