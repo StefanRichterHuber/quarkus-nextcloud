@@ -39,11 +39,41 @@ public final class PHPMongoQueryParser {
             return (t) -> !test(t);
         }
 
+        /**
+         * Turns this CompiledFilter into a Predicate for JSON in String format
+         * 
+         * @return Predicate for strings containing json
+         */
+        default Predicate<String> intoJSONStringPredicate() {
+            return json -> {
+                try {
+                    return test(MAPPER.readTree(json));
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException("String not valid json", e);
+                }
+            };
+        }
+
+        /**
+         * Turns this CompiledFilter into a Predicate for generic objects which must be
+         * convertable to {@link JsonNode} using an {@link ObjectMapper}!
+         * 
+         * @param <T>
+         * @return Predicate for objects convertable to {@link JsonNode}
+         */
+        default <T> Predicate<T> intoObjectPredicate() {
+            return obj -> test(MAPPER.convertValue(obj, JsonNode.class));
+        }
+
     }
 
     public static final class FilterSyntaxException extends IllegalArgumentException {
         public FilterSyntaxException(String message) {
             super(message);
+        }
+
+        public FilterSyntaxException(String message, Throwable e) {
+            super(message, e);
         }
     }
 
@@ -55,7 +85,7 @@ public final class PHPMongoQueryParser {
         try {
             return compile(MAPPER.readTree(filterJson));
         } catch (JsonProcessingException e) {
-            throw new FilterSyntaxException("filter is not valid JSON: " + e.getOriginalMessage());
+            throw new FilterSyntaxException("filter is not valid JSON: " + e.getOriginalMessage(), e);
         }
     }
 
@@ -504,7 +534,7 @@ public final class PHPMongoQueryParser {
             // keeps patterns portable across regex engines.
             return Pattern.compile(body.replace("\\/", "/"), flags);
         } catch (PatternSyntaxException e) {
-            throw new FilterSyntaxException("invalid regular expression: " + body);
+            throw new FilterSyntaxException("invalid regular expression: " + body, e);
         }
     }
 

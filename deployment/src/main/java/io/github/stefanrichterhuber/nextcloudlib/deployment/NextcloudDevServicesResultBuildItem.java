@@ -26,6 +26,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -35,6 +36,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
 import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.runtime.LaunchMode;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 /**
  * Build-step processor that starts a Nextcloud Testcontainers instance as a
@@ -163,7 +165,9 @@ public class NextcloudDevServicesResultBuildItem {
         container.withApps(apps);
         container.withLogLevel(logLevel);
 
-        container.withReuse(true);
+        // No reuse of the container, since it is heavily customized depending on
+        // application / test configuration
+        container.withReuse(false);
         // Necessary to reach external apps like this one
         container.withExtraHost(HOST_NAME_FOR_DOCKER_CONTAINER, "host-gateway");
         container.start();
@@ -590,17 +594,10 @@ public class NextcloudDevServicesResultBuildItem {
         appApiConfigOverrides.putAll(configOverrides);
 
         final ObjectMapper om = new ObjectMapper();
-        final Map<String, Object> jsonInfoObj = new HashMap<>();
-        jsonInfoObj.put("id", appId);
-        jsonInfoObj.put("name", appName);
-        jsonInfoObj.put("daemon_config_name", daemonName);
-        jsonInfoObj.put("version", appVersion);
-        jsonInfoObj.put("secret", appSecret);
-        jsonInfoObj.put("port", Integer.toString(appPort));
-        jsonInfoObj.put("system_app", appIsSystemApp ? 1 : 0);
-        jsonInfoObj.put("scopes", appScopes);
+        final AppApiInfo appApiInfo = new AppApiInfo(appId, appName, daemonName, appVersion, appSecret,
+                Integer.toString(appPort), appIsSystemApp ? 1 : 0, appScopes);
 
-        final String jsonInfo = om.writeValueAsString(jsonInfoObj);
+        final String jsonInfo = om.writeValueAsString(appApiInfo);
 
         // This must happen completly async, since nextcloud wants to access the
         // /heartbeat /init and /enabled endpoints which are only available after the
@@ -638,6 +635,22 @@ public class NextcloudDevServicesResultBuildItem {
                 });
 
         return appApiConfigOverrides;
+    }
+
+    /**
+     * JSON payload passed as {@code --json-info} to the
+     * {@code app_api:app:register} occ command.
+     */
+    @RegisterForReflection
+    private record AppApiInfo(
+            String id,
+            String name,
+            @JsonProperty("daemon_config_name") String daemonConfigName,
+            String version,
+            String secret,
+            String port,
+            @JsonProperty("system_app") int systemApp,
+            List<String> scopes) {
     }
 
 }

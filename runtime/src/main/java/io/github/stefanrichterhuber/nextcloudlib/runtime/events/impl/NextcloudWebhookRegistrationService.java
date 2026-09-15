@@ -205,11 +205,14 @@ public class NextcloudWebhookRegistrationService {
                         }
                         matchingWebhooks = List.of();
                     } else {
-                        for (WebhookMessage existing : matchingWebhooks) {
-                            logger.infof(
-                                    "Webhook for %s already registered at %s (nextcloud.webhook.alwaysRegister=false)",
-                                    existing.event(), url);
-                            webhooks.add(existing);
+                        webhooks.addAll(matchingWebhooks);
+
+                        if (logger.isInfoEnabled()) {
+                            for (WebhookMessage existing : matchingWebhooks) {
+                                logger.infof(
+                                        "Webhook for %s already registered at %s (nextcloud.webhook.alwaysRegister=false)",
+                                        existing.event(), url);
+                            }
                         }
                     }
                 }

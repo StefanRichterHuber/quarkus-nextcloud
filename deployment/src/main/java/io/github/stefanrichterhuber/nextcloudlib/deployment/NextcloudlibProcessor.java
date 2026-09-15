@@ -17,6 +17,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestCl
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.QueryIOInterceptor;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.SardineProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpressionProducer;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -93,6 +94,8 @@ class NextcloudlibProcessor {
                 .addBeanClass(NextcloudFileDiffService.class)
                 .addBeanClass(NextcloudUserService.class)
                 .addBeanClass(NextcloudCommentService.class)
-                .addBeanClass(NextcloudAPIAdminClientHeaders.class).build();
+                .addBeanClass(NextcloudAPIAdminClientHeaders.class)
+                .addBeanClass(FilterExpressionProducer.class)
+                .build();
     }
 }

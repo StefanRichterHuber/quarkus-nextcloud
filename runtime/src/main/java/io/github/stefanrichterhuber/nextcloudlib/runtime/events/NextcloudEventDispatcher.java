@@ -7,9 +7,10 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.util.RequestScopedExecu
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 
 /**
- * Dispatches an incoming {@link NextcloudEvent} to all registered
+ * Dispatches an incoming {@link NextcloudEvent} to the registered (by its
+ * invokerId)
  * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker}
- * instances whose declared event list includes the event's class name.
+ * instance
  * <p>
  * Since this dispatcher is called in the hot event loop of vertx, no expensive
  * operations are allowed. Just delegate to another thread using

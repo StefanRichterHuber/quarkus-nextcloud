@@ -68,16 +68,8 @@ public class NextcloudCalendarTest {
         assertNotNull(cals);
         assertFalse(cals.isEmpty());
 
-        // Check if the event is nithere
-        boolean found = false;
-        for (CalendarEntry ce : cals) {
-            for (VEvent ve : ce.iCal().getEvents()) {
-                if (ve.getSummary().getValue().equals(EVENT_SUMMARY)) {
-                    found = true;
-                }
-            }
-        }
-        assertTrue(found, "Event created not found");
+        assertTrue(cals.stream().flatMap(ce -> ce.iCal().getEvents().stream())
+                .anyMatch(ve -> ve.getSummary().getValue().equals(EVENT_SUMMARY)), "Event created not found");
 
         service.deleteCalendarEntry(personal.name(), uid);
 
@@ -85,15 +77,7 @@ public class NextcloudCalendarTest {
         assertNotNull(cals);
         assertFalse(cals.isEmpty());
 
-        // Check if the event is nithere
-        found = false;
-        for (CalendarEntry ce : cals) {
-            for (VEvent ve : ce.iCal().getEvents()) {
-                if (ve.getSummary().getValue().equals(EVENT_SUMMARY)) {
-                    found = true;
-                }
-            }
-        }
-        assertFalse(found, "Event should have been deleted ");
+        assertFalse(cals.stream().flatMap(ce -> ce.iCal().getEvents().stream())
+                .anyMatch(ve -> ve.getSummary().getValue().equals(EVENT_SUMMARY)), "Event should have been deleted ");
     }
 }

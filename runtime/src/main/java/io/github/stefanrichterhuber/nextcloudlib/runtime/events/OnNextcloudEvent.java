@@ -6,6 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 
 /**
  * Marks a CDI bean method as a Nextcloud webhook event handler.
@@ -34,8 +35,10 @@ public @interface OnNextcloudEvent {
 
     /**
      * When {@code true}, a temporary auth token for the triggering user is
-     * requested from Nextcloud before the handler is invoked. When provided, it is
-     * injected into the current {@link NextcloudAuthProvider}
+     * created by Nextcloud before the handler is invoked. When provided, it is
+     * injected into the current {@link NextcloudAuthProvider} using
+     * {@link NextcloudAuthProvider#setCredentials(NextcloudUserCredentials)}
+     * by the default {@link NextcloudEventDispatcher} implementation
      *
      * @return {@code true} to request a temporary auth token
      */
@@ -45,14 +48,13 @@ public @interface OnNextcloudEvent {
      * An optional filter expression to further restrict which events are dispatched
      * to the handler. e.g.: {@code "{ "user.uid": "admin" }" }. Supports property
      * expressions like
-     * {@code  "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }" } <br>
-     * As of now, these filters are purly client side!
+     * {@code  "{ \"user.uid\": \"${nextcloud.filter.admin-uid}\" }" }
      * 
      * @see <a href=
      *      "https://docs.nextcloud.com/server/stable/admin_manual/webhook_listeners/index.html">Nextcloud
      *      Webhook Listeners</a> for the mongo db like filter syntax.
      * 
-     * @return
+     * @return Additional filter fo apply
      */
     String filter() default "";
 }
