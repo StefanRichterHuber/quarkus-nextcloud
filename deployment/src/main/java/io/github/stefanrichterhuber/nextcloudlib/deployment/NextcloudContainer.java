@@ -202,9 +202,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
      * @return Success of the command
      */
     public CompletableFuture<Boolean> exec(String... command) {
-        CompletableFuture<Boolean> execResult = new CompletableFuture<>();
         if (isRunning()) {
-            occExecutor.execute(() -> {
+            return CompletableFuture.supplyAsync(() -> {
                 try {
                     log.tracef("Execute command in running container: %s",
                             List.of(command).stream().collect(Collectors.joining(" ")));
@@ -214,18 +213,19 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
                         log.errorf("Failed to execute command '%s': %s \n\n %s",
                                 List.of(command).stream().collect(Collectors.joining(" ")), result.getStderr(),
                                 result.getStdout());
-                        execResult.complete(false);
+                        return false;
                     } else {
                         log.debugf("Successfully executed command '%s' in container: %s ",
                                 List.of(command).stream().collect(Collectors.joining(" ")), result.getStdout());
-                        execResult.complete(true);
+                        return true;
                     }
-
                 } catch (UnsupportedOperationException | IOException | InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-            });
+            }, occExecutor);
         } else {
+            final CompletableFuture<Boolean> execResult = new CompletableFuture<>();
+
             // Defer to later run on startup
             startupScripts.add(List.of(command).stream()
                     // Escape double quotes
@@ -233,8 +233,8 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
                     // put every command part with spaces within double quotes
                     .map(c -> c.contains(" ") ? "\"" + c + "\"" : c).collect(Collectors.joining(" ")) + "\n");
             execResult.complete(true);
+            return execResult;
         }
-        return execResult;
     }
 
     @Override

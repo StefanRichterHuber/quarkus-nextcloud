@@ -26,6 +26,14 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>io.quarkiverse.docker</groupId>
+            <artifactId>quarkus-docker-client</artifactId>
+            <version>0.1.2</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.github.stefanrichterhuber</groupId>
             <artifactId>nextcloudlib</artifactId>

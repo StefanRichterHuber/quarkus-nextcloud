@@ -66,6 +66,8 @@ public class NextcloudDevServicesResultBuildItem {
 
     public static final String NEXTCLOUD_WEBHOOK_HOST_PROPERTY = "nextcloud.webhook.host";
 
+    public static final String NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY = "nextcloud.dev-services.container-id";
+
     public static final String NEXTCLOUD_OIDC_IDP_PROPERTY = "quarkus.oidc.auth-server-url";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
     public static final String NEXTCLOUD_OIDC_CLIENT_SECRET_PROPERTY = "quarkus.oidc.credentials.secret"; // QUARKUS_OIDC_CREDENTIALS_SECRET
@@ -172,13 +174,15 @@ public class NextcloudDevServicesResultBuildItem {
         container.withExtraHost(HOST_NAME_FOR_DOCKER_CONTAINER, "host-gateway");
         container.start();
 
+        // ------ Container started -----------
         // Prepare configuration to return
+        Map<String, String> configOverrides = new HashMap<>();
         final String newUrl = "http://%s:%d".formatted(container.getHost(),
                 container.getMappedPort(SERVICE_PORT));
 
-        Map<String, String> configOverrides = new HashMap<>();
-
         configOverrides.put(NEXTCLOUD_URL_PROPERTY, newUrl);
+
+        configOverrides.put(NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY, container.getContainerId());
 
         // Admin user and standard user are the same for dev service, so that the dev
         // service can be used for both admin and standard user scenarios. The password
@@ -209,8 +213,9 @@ public class NextcloudDevServicesResultBuildItem {
         }
 
         log.infof(
-                "Started nextcloud dev instance at '%s' with apps %s with admin user <%s> and password <%s>. Authentication mode is %s. AppAPI support %s. Background job WebhookCall is %s",
+                "Started nextcloud dev instance at '%s' (container id %s) with apps %s with admin user <%s> and password <%s>. Authentication mode is %s. AppAPI support %s. Background job WebhookCall is %s",
                 newUrl,
+                container.getContainerId(),
                 apps, user, password, authMode, appApiSupport ? "enabled" : "not enabled",
                 webhookWorkerEnabled ? "enabled" : "not enabled");
 
