@@ -2,6 +2,8 @@ package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget.Kind;
@@ -10,10 +12,12 @@ import org.jboss.jandex.MethodInfo;
 import org.jboss.jandex.Type;
 import org.jboss.logging.Logger;
 
+import io.github.stefanrichterhuber.nextcloudlib.deployment.NextcloudEventHandlerBuildItem.ReturnKind;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpressionResolver;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.DefaultNextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvokerSupport;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookBuildConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRecorder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrationService;
@@ -67,6 +71,9 @@ class NextcloudEventProcessor {
 
     private static final DotName ON_NEXTCLOUD_EVENT = DotName.createSimple(OnNextcloudEvent.class.getName());
     private static final DotName NEXTCLOUD_EVENT = DotName.createSimple(NextcloudEvent.class.getName());
+    private static final DotName COMPLETION_STAGE = DotName.createSimple(CompletionStage.class.getName());
+    private static final DotName COMPLETABLE_FUTURE = DotName.createSimple(CompletableFuture.class.getName());
+    private static final DotName UNI = DotName.createSimple("io.smallrye.mutiny.Uni");
 
     /**
      * Scans the combined Jandex index for {@link OnNextcloudEvent}-annotated
@@ -81,6 +88,8 @@ class NextcloudEventProcessor {
      * <li>Method must have exactly one parameter of type
      * {@link NextcloudEvent}.</li>
      * <li>At least one event class name must be specified in {@code events()}.</li>
+     * <li>Method must return {@code void}, {@link CompletionStage},
+     * {@link CompletableFuture} or {@code Uni} (with any type argument).</li>
      * </ul>
      *
      * @param index    the combined Jandex index provided by Quarkus
@@ -113,9 +122,13 @@ class NextcloudEventProcessor {
                                     + " parameter must be NextcloudEvent, found: " + paramType.name());
                 }
 
-                if (method.returnType().kind() != Type.Kind.VOID) {
+                final Type returnType = method.returnType();
+                final ReturnKind returnKind = classifyReturnType(returnType);
+                if (returnKind == null) {
                     throw new IllegalStateException(
-                            "@OnNextcloudEvent method " + location + " must return void");
+                            "@OnNextcloudEvent method " + location
+                                    + " must return void, CompletionStage, CompletableFuture or Uni, found: "
+                                    + returnType.name());
                 }
 
                 final String[] eventClassNames = ann.value("events").asStringArray();
@@ -135,9 +148,32 @@ class NextcloudEventProcessor {
                 handlers.produce(new NextcloudEventHandlerBuildItem(
                         method.declaringClass().name().toString(),
                         method.name(),
-                        eventClassNames, requestAuthToken, filter));
+                        eventClassNames, requestAuthToken, filter,
+                        returnType.name().toString(), returnKind));
             }
         }
+    }
+
+    /**
+     * Determines the {@link ReturnKind} of a handler method's return type. Type
+     * arguments are ignored, since the result value of the handler is discarded.
+     *
+     * @param returnType return type of the handler method
+     * @return the kind of the return type or {@code null} if the return type is
+     *         not supported
+     */
+    private static ReturnKind classifyReturnType(Type returnType) {
+        if (returnType.kind() == Type.Kind.VOID) {
+            return ReturnKind.VOID;
+        }
+        final DotName name = returnType.name();
+        if (name.equals(COMPLETION_STAGE) || name.equals(COMPLETABLE_FUTURE)) {
+            return ReturnKind.STAGE;
+        }
+        if (name.equals(UNI)) {
+            return ReturnKind.UNI;
+        }
+        return null;
     }
 
     /**
@@ -195,7 +231,7 @@ class NextcloudEventProcessor {
             generateInvoker(classOutput, handler.getDeclaringClassName(),
                     handler.getMethodName(),
                     handler.getEventClassNames(), handler.isRequestAuthToken(),
-                    handler.getFilter());
+                    handler.getFilter(), handler.getReturnTypeName(), handler.getReturnKind());
         }
     }
 
@@ -298,12 +334,15 @@ class NextcloudEventProcessor {
      *                           for
      * @param tokenNeeded        whether a temporary auth token should be requested
      *                           from Nextcloud
-     * @param provideAuth        whether a {@code NextcloudAuthProvider} should be
-     *                           made available in the request context
+     * @param filter             filter expression declared on the annotation
+     * @param returnTypeName     fully-qualified (erased) name of the handler
+     *                           method's return type
+     * @param returnKind         kind of the handler method's return type
      * @return the fully-qualified name of the generated invoker class
      */
     private static String generateInvoker(ClassOutput classOutput, String declaringClassName,
-            String methodName, String[] events, boolean tokenNeeded, String filter) {
+            String methodName, String[] events, boolean tokenNeeded, String filter, String returnTypeName,
+            ReturnKind returnKind) {
         String invokerClassName = declaringClassName + "_" + methodName + "_NCInvoker";
 
         try (ClassCreator cc = ClassCreator.builder()
@@ -313,7 +352,7 @@ class NextcloudEventProcessor {
                 .build()) {
 
             cc.addAnnotation(ApplicationScoped.class);
-            buildInvokeMethod(cc, declaringClassName, methodName);
+            buildInvokeMethod(cc, declaringClassName, methodName, returnTypeName, returnKind);
             buildEventsMethod(cc, events);
             buildRequestAuthTokenMethod(cc, tokenNeeded);
             buildFilterMethod(cc, filter);
@@ -330,30 +369,52 @@ class NextcloudEventProcessor {
      * <p>
      * The generated bytecode reads an {@code @Inject}-ed delegate field and invokes
      * the target method directly. CDI manages the delegate's lifecycle through
-     * normal injection semantics.
+     * normal injection semantics. The return value of the target method is
+     * converted to a {@code CompletionStage<Void>} using
+     * {@link NextcloudEventInvokerSupport}.
      * </p>
      *
      * @param cc                 class creator for the invoker being generated
      * @param declaringClassName fully-qualified name of the handler bean class
      * @param methodName         name of the {@link OnNextcloudEvent}-annotated
      *                           method
+     * @param returnTypeName     fully-qualified (erased) name of the handler
+     *                           method's return type
+     * @param returnKind         kind of the handler method's return type
      */
-    private static void buildInvokeMethod(ClassCreator cc, String declaringClassName, String methodName) {
+    private static void buildInvokeMethod(ClassCreator cc, String declaringClassName, String methodName,
+            String returnTypeName, ReturnKind returnKind) {
         FieldCreator fc = cc.getFieldCreator("delegate", declaringClassName);
         fc.setModifiers(0); // package-private: ArC's generated _Bean class accesses this field via direct
                             // bytecode
         fc.addAnnotation(Inject.class);
 
-        MethodCreator mc = cc.getMethodCreator("invoke", void.class, NextcloudEvent.class);
+        MethodCreator mc = cc.getMethodCreator("invoke", CompletionStage.class, NextcloudEvent.class);
 
         ResultHandle bean = mc.readInstanceField(fc.getFieldDescriptor(), mc.getThis());
 
-        mc.invokeVirtualMethod(
-                MethodDescriptor.ofMethod(declaringClassName, methodName, void.class, NextcloudEvent.class),
+        // The descriptor must match the declared return type exactly, otherwise the
+        // call fails with a NoSuchMethodError at runtime
+        ResultHandle result = mc.invokeVirtualMethod(
+                MethodDescriptor.ofMethod(declaringClassName, methodName, returnTypeName,
+                        NextcloudEvent.class.getName()),
                 bean,
                 mc.getMethodParam(0));
 
-        mc.returnVoid();
+        final ResultHandle stage = switch (returnKind) {
+            case VOID -> mc.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(NextcloudEventInvokerSupport.class, "completed",
+                            CompletionStage.class));
+            case STAGE -> mc.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(NextcloudEventInvokerSupport.class, "fromStage",
+                            CompletionStage.class, CompletionStage.class),
+                    result);
+            case UNI -> mc.invokeStaticMethod(
+                    MethodDescriptor.ofMethod(NextcloudEventInvokerSupport.class.getName(), "fromUni",
+                            CompletionStage.class.getName(), UNI.toString()),
+                    result);
+        };
+        mc.returnValue(stage);
     }
 
     /**

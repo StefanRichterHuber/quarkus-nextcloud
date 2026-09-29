@@ -17,6 +17,56 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCre
  * The extension automatically registers a webhook listener with Nextcloud
  * on startup and dispatches matching events to the method.
  *
+ * <h2>Return types</h2>
+ * <p>
+ * The annotated method may return one of the following types. The result
+ * value (if any) is ignored, any other return type fails the build.
+ * </p>
+ * <ul>
+ * <li>{@code void} &ndash; the handler is finished when the method
+ * returns.</li>
+ * <li>{@link java.util.concurrent.CompletionStage CompletionStage&lt;?&gt;} or
+ * {@link java.util.concurrent.CompletableFuture CompletableFuture&lt;?&gt;}
+ * &ndash; the handler is finished when the returned stage completes.</li>
+ * <li>{@code io.smallrye.mutiny.Uni<?>} &ndash; the returned Uni is
+ * subscribed by the extension, the handler is finished when it emits an item
+ * or a failure.</li>
+ * </ul>
+ * <p>
+ * Only after the handler is finished, the ephemeral auth token requested with
+ * {@link #requestAuthToken()} is deleted (if
+ * {@code nextcloud.webhook.cleanup-auth-tokens} is enabled, after the optional
+ * {@code nextcloud.webhook.cleanup-auth-token-delay}). Exceptions thrown by the
+ * method and failed stages / Unis are logged by the default
+ * {@link NextcloudEventDispatcher}.
+ * </p>
+ * <p>
+ * <strong>Note:</strong> The request context &ndash; and with it the
+ * request-scoped {@link NextcloudAuthProvider} holding the credentials of the
+ * event &ndash; is only active while the annotated method itself runs.
+ * Asynchronous continuations run outside of this request context, so
+ * request-scoped beans are not available there. Read everything required
+ * (e.g. {@link NextcloudAuthProvider#getCredentials()}) before going
+ * asynchronous and pass it on explicitly, or use context propagation.
+ * </p>
+ * <p>
+ * To use the Nextcloud services with the event credentials within asynchronous
+ * code, run it on a
+ * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor}.
+ * It starts a new request context for each task and passes the given
+ * credentials into its {@link NextcloudAuthProvider}:
+ * </p>
+ *
+ * <pre>{@code
+ * public CompletionStage<Void> onFileCreated(NextcloudEvent<?> event) {
+ *     // Capture the credentials while the request context is still active
+ *     final NextcloudUserCredentials credentials = authProvider.getCredentials();
+ *     final Executor executor = new CredentialsAwareRequestScopedExecutor(managedExecutor, credentials);
+ *     // All Nextcloud services called within process() act with the event credentials
+ *     return CompletableFuture.runAsync(() -> process(event), executor);
+ * }
+ * }</pre>
+ *
  * @see io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar
  */
 @Target(ElementType.METHOD)
@@ -38,7 +88,9 @@ public @interface OnNextcloudEvent {
      * created by Nextcloud before the handler is invoked. When provided, it is
      * injected into the current {@link NextcloudAuthProvider} using
      * {@link NextcloudAuthProvider#setCredentials(NextcloudUserCredentials)}
-     * by the default {@link NextcloudEventDispatcher} implementation
+     * by the default {@link NextcloudEventDispatcher} implementation.
+     * See the class documentation on when the token may be deleted again and on
+     * the availability of the credentials within asynchronous handlers.
      *
      * @return {@code true} to request a temporary auth token
      */

@@ -1,6 +1,9 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.models;
 
 import java.util.List;
+import java.util.Optional;
+
+import org.eclipse.microprofile.config.ConfigProvider;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -87,7 +90,13 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
             @JsonProperty("owner") Trigger owner) {
         public record Trigger(String userId, String token, String baseUrl) {
             public NextcloudUserCredentials toUserCredentials() {
-                return new NextcloudUserCredentials(userId, token, baseUrl, NextcloudUserCredentials.Mode.APP_PASSWORD);
+                final Optional<String> actualServer = ConfigProvider.getConfig()
+                        .getOptionalValue("nextcloud.webhook.fixed-webhook-token-url", String.class);
+
+                final NextcloudUserCredentials creds = new NextcloudUserCredentials(userId, token,
+                        actualServer.orElse(baseUrl),
+                        NextcloudUserCredentials.Mode.APP_PASSWORD);
+                return creds;
             }
         }
     }

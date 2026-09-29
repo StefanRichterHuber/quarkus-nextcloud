@@ -16,6 +16,10 @@ import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.model.Frame;
@@ -37,6 +41,9 @@ public class NextcloudController {
 
     @Inject
     Logger log;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     @Inject
     @ConfigProperty(name = NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY)
@@ -208,5 +215,43 @@ public class NextcloudController {
             type = "boolean";
         }
         return setConfigValue(field, key, value.toString(), type);
+    }
+
+    /**
+     * Model for the Auth Token entries returned by nextcloud for the 'occ
+     * user:auth-tokens:list' command
+     * UserAuthToken
+     * 
+     * @param id           ID of the token
+     * @param name         Human-readable name of the token
+     * @param lastActivity Unix timestamp of the last activity with the token
+     * @param type         Type of token
+     * @param scope        Scope of the token
+     */
+    public record UserAuthToken(int id, String name, long lastActivity, int type, Scope scope) {
+        public record Scope(boolean filesystem) {
+        }
+    }
+
+    /**
+     * List the auth tokens (app passwords) for the given user
+     * 
+     * @param user Name of the user
+     * @return List of auth tokens
+     * @throws JsonMappingException
+     * @throws JsonProcessingException
+     */
+    public List<UserAuthToken> listAuthTokens(String user) throws JsonMappingException, JsonProcessingException {
+        final InvocationResult r = occ("user:auth-tokens:list", user, "--output", "json").join();
+        final String json = r.stdout();
+        if (r.exitCode() != 0) {
+            throw new IllegalStateException(
+                    String.format("Failed to execute 'occ user:auth-tokens:list %s --output json'", user));
+        }
+
+        final List<UserAuthToken> tokens = objectMapper.readValue(json, new TypeReference<List<UserAuthToken>>() {
+        });
+
+        return tokens;
     }
 }

@@ -169,11 +169,8 @@ public class NextcloudEventTest {
         assertNotNull(event2, "Node create event for creation of file was not received");
 
         // Use the credentials provided by the event to access the file service
-        // Unfortunately the server returned by the event does not contain the correct
-        // port mapped from the docker container, so we have to manually set the correct
-        // server here.
-        final NextcloudUserCredentials credentials = event2.authentication().trigger().toUserCredentials()
-                .withServer(authProvider.getServer());
+
+        final NextcloudUserCredentials credentials = event2.authentication().trigger().toUserCredentials();
         assertTrue(testCredentials(credentials),
                 "Unable to perform request with credentials provided by event authentication");
 

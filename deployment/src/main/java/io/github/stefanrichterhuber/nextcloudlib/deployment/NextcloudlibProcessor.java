@@ -19,6 +19,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.QueryIOIntercep
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.SardineProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpressionProducer;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutorProvider;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.AdditionalIndexedClassesBuildItem;
@@ -96,6 +97,7 @@ class NextcloudlibProcessor {
                 .addBeanClass(NextcloudCommentService.class)
                 .addBeanClass(NextcloudAPIAdminClientHeaders.class)
                 .addBeanClass(FilterExpressionProducer.class)
+                .addBeanClass(CredentialsAwareRequestScopedExecutorProvider.class)
                 .build();
     }
 }

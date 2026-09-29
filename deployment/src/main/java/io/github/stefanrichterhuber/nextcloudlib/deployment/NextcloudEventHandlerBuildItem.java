@@ -10,12 +10,32 @@ import io.quarkus.builder.item.MultiBuildItem;
  */
 public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
 
+    /**
+     * Supported kinds of return types of an
+     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent}-annotated
+     * method.
+     */
+    public enum ReturnKind {
+        /** Method returns {@code void} */
+        VOID,
+        /**
+         * Method returns a {@link java.util.concurrent.CompletionStage} or
+         * {@link java.util.concurrent.CompletableFuture}
+         */
+        STAGE,
+        /** Method returns a {@code io.smallrye.mutiny.Uni} */
+        UNI
+    }
+
     private final String declaringClassName;
     private final String methodName;
     private final String[] eventClassNames;
     private final boolean requestAuthToken;
 
     private final String filter;
+
+    private final String returnTypeName;
+    private final ReturnKind returnKind;
 
     /**
      * @param declaringClassName fully-qualified name of the CDI bean class that
@@ -26,15 +46,22 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
      * @param eventClassNames    fully-qualified Nextcloud PHP event class names the
      *                           method listens for
      * @param requestAuthToken   {@code true} when a temporary auth token must be
-     *                           requeded from Nextcloud
+     *                           requested from Nextcloud
+     * @param filter             filter expression declared on the annotation
+     * @param returnTypeName     fully-qualified (erased) name of the method's
+     *                           return type, e.g. {@code void} or
+     *                           {@code java.util.concurrent.CompletableFuture}
+     * @param returnKind         kind of the method's return type
      */
     public NextcloudEventHandlerBuildItem(String declaringClassName, String methodName, String[] eventClassNames,
-            boolean requestAuthToken, String filter) {
+            boolean requestAuthToken, String filter, String returnTypeName, ReturnKind returnKind) {
         this.declaringClassName = declaringClassName;
         this.methodName = methodName;
         this.eventClassNames = eventClassNames;
         this.requestAuthToken = requestAuthToken;
         this.filter = filter;
+        this.returnTypeName = returnTypeName;
+        this.returnKind = returnKind;
     }
 
     /**
@@ -68,5 +95,19 @@ public final class NextcloudEventHandlerBuildItem extends MultiBuildItem {
      */
     public String getFilter() {
         return filter;
+    }
+
+    /**
+     * @return fully-qualified (erased) name of the handler method's return type
+     */
+    public String getReturnTypeName() {
+        return returnTypeName;
+    }
+
+    /**
+     * @return kind of the handler method's return type
+     */
+    public ReturnKind getReturnKind() {
+        return returnKind;
     }
 }

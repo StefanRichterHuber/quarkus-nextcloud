@@ -55,6 +55,7 @@ public class NextcloudDevServicesResultBuildItem {
     private static final int SERVICE_PORT = 80;
     private static final String ADMIN_PASSWORD = RandomStringUtils.secure().nextAlphanumeric(12);
     public static final String NEXTCLOUD_URL_PROPERTY = "nextcloud.url";
+    public static final String NEXTCLOUD_WEBHOOK_FIXED_WEBHOOK_TOKEN_URL_PROPERTY = "nextcloud.webhook.fixed-webhook-token-url";
     public static final String NEXTCLOUD_USER_PROPERTY = "nextcloud.user";
     public static final String NEXTCLOUD_PASSWORD_PROPERTY = "nextcloud.password";
 
@@ -180,6 +181,7 @@ public class NextcloudDevServicesResultBuildItem {
         final String newUrl = "http://%s:%d".formatted(container.getHost(),
                 container.getMappedPort(SERVICE_PORT));
 
+        configOverrides.put(NEXTCLOUD_WEBHOOK_FIXED_WEBHOOK_TOKEN_URL_PROPERTY, newUrl);
         configOverrides.put(NEXTCLOUD_URL_PROPERTY, newUrl);
 
         configOverrides.put(NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY, container.getContainerId());

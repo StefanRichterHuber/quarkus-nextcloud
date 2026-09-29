@@ -244,7 +244,7 @@ public class NextcloudUserService {
         try {
             final OCSMessage<Object> r = client.deleteAppPassword(authHeader);
             if (r.isOk()) {
-                log.infof("Successfully deleted app password for user %s", user);
+                log.debugf("Successfully deleted app password for user %s", user);
             } else {
                 log.errorf("Failed to deleted app password for user %s -> consider app password deleted anyway", user);
                 return false;

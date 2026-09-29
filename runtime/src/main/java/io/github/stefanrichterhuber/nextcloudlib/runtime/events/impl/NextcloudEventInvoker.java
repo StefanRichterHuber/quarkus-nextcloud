@@ -1,5 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
+import java.util.concurrent.CompletionStage;
+
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.OnNextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 
@@ -15,10 +17,19 @@ public interface NextcloudEventInvoker {
     /**
      * Invokes the {@link OnNextcloudEvent}-annotated handler method with the
      * given event.
+     * <p>
+     * Handler methods returning {@code void} are considered finished when the
+     * method returns, handler methods returning a {@code CompletionStage},
+     * {@code CompletableFuture} or {@code Uni} when the returned value completes.
+     * Exceptions thrown synchronously by the handler method are propagated
+     * directly.
      *
      * @param event the Nextcloud event to dispatch to the handler
+     * @return a stage completing (normally or exceptionally) when the handler has
+     *         finished its work, never {@code null} for generated invokers
+     * @see NextcloudEventInvokerSupport
      */
-    void invoke(NextcloudEvent<?> event);
+    CompletionStage<Void> invoke(NextcloudEvent<?> event);
 
     /**
      * Returns the fully-qualified Nextcloud PHP event class names this invoker

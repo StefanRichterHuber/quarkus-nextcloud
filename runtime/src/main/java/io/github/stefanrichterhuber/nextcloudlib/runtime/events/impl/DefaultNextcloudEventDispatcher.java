@@ -1,10 +1,14 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
@@ -30,10 +34,16 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
     Logger logger;
 
     @Inject
-    ManagedExecutor scheduledExecutorService;
+    ScheduledExecutorService scheduledExecutorService;
 
     @Inject
     NextcloudWebhookRegistrationService registrationService;
+
+    @Inject
+    NextcloudWebhookConfig config;
+
+    @Inject
+    NextcloudUserService userService;
 
     @Override
     public void dispatch(String handlerId, NextcloudEvent<? extends Event> event,
@@ -53,9 +63,61 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
         }
 
         try {
-            executor.execute(() -> invoker.invoke(event));
+            // The stage returned by the invoker completes when the handler has finished
+            // its (possibly asynchronous) work. Only then the temporary token may be
+            // removed - regardless whether the handler succeeded or failed.
+            CompletableFuture.supplyAsync(() -> invoker.invoke(event), executor)
+                    .thenCompose(stage -> stage != null ? stage : CompletableFuture.<Void>completedFuture(null))
+                    .whenComplete((v, err) -> {
+                        if (err != null) {
+                            logger.errorf(unwrap(err), "Handler '%s' failed to process event <%s>", handlerId,
+                                    event);
+                        }
+                        cleanupTemporaryToken(credentials, executor);
+                    });
         } catch (Exception e) {
             logger.errorf(e, "Failed to dispatch event <%s>", event);
         }
     }
+
+    /**
+     * Strips the {@link CompletionException} wrapper added by
+     * {@link CompletableFuture} to expose the actual cause.
+     */
+    private static Throwable unwrap(Throwable t) {
+        return t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
+    }
+
+    /**
+     * If requested clean up the temporary credentials created by Nextcloud. See
+     * {@link NextcloudWebhookConfig#cleanupAuthTokens()} for the reason this is
+     * required.
+     * 
+     * @param credentials Temporary credentials to delete. If this is null, the
+     *                    whole method is no-op.
+     * @param executor    Executor used to actually run the deletion
+     */
+    private void cleanupTemporaryToken(NextcloudUserCredentials credentials, Executor executor) {
+        if (credentials != null && config.cleanupAuthTokens()) {
+            final Runnable cleanupJob = () -> {
+                executor.execute(() -> {
+                    final boolean result = userService.deleteAppPassword(credentials);
+                    if (result) {
+                        logger.debugf("Deleted ephemeral auth token from webhook event");
+                    } else {
+                        logger.warnf("Failed to delete ephemeral auth token from webhook event");
+                    }
+                });
+            };
+            if (config.cleanupAuthTokenDelay().toMillis() == 0l) {
+                // Immediate clean up
+                cleanupJob.run();
+            } else {
+                // Schedule removal of credentials
+                scheduledExecutorService.schedule(cleanupJob, config.cleanupAuthTokenDelay().toMillis(),
+                        TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
 }

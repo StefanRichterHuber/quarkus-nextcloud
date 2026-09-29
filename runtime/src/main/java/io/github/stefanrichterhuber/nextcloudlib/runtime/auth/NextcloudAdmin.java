@@ -7,6 +7,8 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+
+import jakarta.enterprise.util.AnnotationLiteral;
 import jakarta.inject.Qualifier;
 
 /**
@@ -23,4 +25,22 @@ import jakarta.inject.Qualifier;
 @Target({ METHOD, FIELD, PARAMETER, TYPE })
 public @interface NextcloudAdmin {
 
+    /**
+     * Annotation literal for programmatic CDI injection
+     */
+    public static final class Literal extends AnnotationLiteral<NextcloudAdmin> {
+        private static final long serialVersionUID = 1L;
+
+        private static final Literal INSTANCE = new Literal();
+
+        private Literal() {
+        }
+
+        /**
+         * @return the shared literal instance
+         */
+        public static Literal instance() {
+            return INSTANCE;
+        }
+    }
 }
