@@ -19,8 +19,6 @@ import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import io.github.stefanrichterhuber.nextcloudlib.events.TestEventHandlers.PendingAsyncEvent;
 import io.github.stefanrichterhuber.nextcloudlib.other.NextcloudController;
 import io.github.stefanrichterhuber.nextcloudlib.other.NextcloudController.UserAuthToken;
@@ -242,12 +240,8 @@ public class EphemeralTokenDeleteTest {
 
     public List<UserAuthToken> listEphemeralTokens() {
         final String user = authProvider.getUser();
-        try {
-            return controller.listAuthTokens(user).stream()
-                    .filter(u -> u.name().equals(NAME_EPHEMERAL_WEBHOOK_TOKEN))
-                    .toList();
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
-        }
+        return controller.listAuthTokens(user).join().stream()
+                .filter(u -> u.name().equals(NAME_EPHEMERAL_WEBHOOK_TOKEN))
+                .toList();
     }
 }

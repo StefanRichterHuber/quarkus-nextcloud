@@ -28,9 +28,18 @@ import com.github.dockerjava.api.model.StreamType;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+/**
+ * This utility class provides methods to interact with the Nextcloud container
+ * during integration tests. It allows executing commands inside the container,
+ * managing configuration values, and listing authentication tokens for users.
+ * The class uses Docker Java API to communicate with the container and provides
+ * asynchronous execution of commands using a scheduled executor service.
+ * NextcloudController
+ */
 @ApplicationScoped
 public class NextcloudController {
     public static final String OCC_COMMAND_SET_CONFIG_VALUE = "config:system:set";
+    public static final String OCC_COMMAND_DELETE_CONFIG_VALUE = "config:system:delete";
     public static final String NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY = "nextcloud.dev-services.container-id";
 
     @Inject
@@ -200,6 +209,21 @@ public class NextcloudController {
     }
 
     /**
+     * Deletes a system configuration value in the Nextcloud container.
+     * 
+     * @param field Configuration field to delete, e.g. {@code log}
+     * @param key   Configuration key to delete, e.g. {@code loglevel}
+     * @return
+     */
+    public CompletableFuture<InvocationResult> deleteConfigValue(String field, String key) {
+        if (field != null && !field.isEmpty()) {
+            return occ(OCC_COMMAND_DELETE_CONFIG_VALUE, field, key);
+        } else {
+            return occ(OCC_COMMAND_DELETE_CONFIG_VALUE, key);
+        }
+    }
+
+    /**
      * Sets a system configuration value in the Nextcloud container.
      * 
      * @param field Configuration field to set, e.g. {@code log}
@@ -213,6 +237,9 @@ public class NextcloudController {
             type = "integer";
         } else if (value instanceof Boolean) {
             type = "boolean";
+        }
+        if (value == null) {
+            return deleteConfigValue(field, key);
         }
         return setConfigValue(field, key, value.toString(), type);
     }
@@ -241,17 +268,23 @@ public class NextcloudController {
      * @throws JsonMappingException
      * @throws JsonProcessingException
      */
-    public List<UserAuthToken> listAuthTokens(String user) throws JsonMappingException, JsonProcessingException {
-        final InvocationResult r = occ("user:auth-tokens:list", user, "--output", "json").join();
-        final String json = r.stdout();
-        if (r.exitCode() != 0) {
-            throw new IllegalStateException(
-                    String.format("Failed to execute 'occ user:auth-tokens:list %s --output json'", user));
-        }
+    public CompletableFuture<List<UserAuthToken>> listAuthTokens(String user) {
+        return occ("user:auth-tokens:list", user, "--output", "json").thenApply(r -> {
+            try {
+                final String json = r.stdout();
+                if (r.exitCode() != 0) {
+                    throw new IllegalStateException(
+                            String.format("Failed to execute 'occ user:auth-tokens:list %s --output json'", user));
+                }
 
-        final List<UserAuthToken> tokens = objectMapper.readValue(json, new TypeReference<List<UserAuthToken>>() {
+                final List<UserAuthToken> tokens = objectMapper.readValue(json,
+                        new TypeReference<List<UserAuthToken>>() {
+                        });
+
+                return tokens;
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
         });
-
-        return tokens;
     }
 }
