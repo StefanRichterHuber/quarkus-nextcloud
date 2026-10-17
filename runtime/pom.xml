@@ -47,12 +47,12 @@
         <dependency>
             <groupId>io.quarkiverse.tika</groupId>
             <artifactId>quarkus-tika</artifactId>
-            <version>2.3.1</version>
+            <version>2.3.2</version>
         </dependency>
         <dependency>
             <groupId>io.github.java-diff-utils</groupId>
             <artifactId>java-diff-utils</artifactId>
-            <version>4.16</version>
+            <version>4.17</version>
         </dependency>
         <dependency>
             <groupId>net.sf.biweekly</groupId>

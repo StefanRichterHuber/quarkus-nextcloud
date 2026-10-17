@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.stefanrichterhuber</groupId>
     <artifactId>nextcloudlib-parent</artifactId>
@@ -15,14 +17,14 @@
     </modules>
 
     <properties>
-        <compiler-plugin.version>3.15.0</compiler-plugin.version>
+        <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <quarkus.version>3.34.5</quarkus.version>
-        <surefire-plugin.version>3.5.4</surefire-plugin.version>
+        <quarkus.version>3.40.1</quarkus.version>
+        <surefire-plugin.version>3.6.0</surefire-plugin.version>
     </properties>
 
     <licenses>
@@ -58,6 +60,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Security overrides for transitive dependencies. Remove once the upstream libraries
+            ship the fixed versions themselves -->
+            <dependency>
+                <!-- via quarkus-tika (tika-parser-pkg-module): CVE-2026-97370, CVE-2026-86071 -->
+                <groupId>com.github.junrar</groupId>
+                <artifactId>junrar</artifactId>
+                <version>7.6.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -68,7 +78,7 @@
                 local staging repository (altDeploymentRepository), which is verified, bundled and
                 uploaded to Maven Central by the workflow -->
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>3.1.4</version>
+                <version>3.2.0</version>
             </plugin>
         </plugins>
         <pluginManagement>
@@ -110,7 +120,7 @@
                 </plugin>
                 <plugin>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.0</version>
                     <executions>
                         <execution>
                             <id>attach-sources</id>
@@ -176,7 +186,7 @@
                     </plugin>
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.6.3</version>
+                        <version>3.12.0</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -199,7 +209,7 @@
                     <plugin>
                         <groupId>com.github.spotbugs</groupId>
                         <artifactId>spotbugs-maven-plugin</artifactId>
-                        <version>4.10.4.1</version>
+                        <version>4.10.5.0</version>
                         <executions>
                             <execution>
                                 <goals>
