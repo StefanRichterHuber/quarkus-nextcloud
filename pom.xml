@@ -45,7 +45,8 @@
         <connection>scm:git:https://github.com/StefanRichterHuber/quarkus-nextcloud.git</connection>
         <developerConnection>scm:git:https://github.com/StefanRichterHuber/quarkus-nextcloud.git</developerConnection>
         <url>https://github.com/StefanRichterHuber/quarkus-nextcloud</url>
-        <tag>v2.0.0</tag>
+        <!-- Set to the release tag by the release workflow, HEAD during development -->
+        <tag>HEAD</tag>
     </scm>
 
     <dependencyManagement>
@@ -61,6 +62,15 @@
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <plugin>
+                <!-- Releases are published by .github/workflows/release.yml: deploy only writes a
+                local staging repository (altDeploymentRepository), which is verified, bundled and
+                uploaded to Maven Central by the workflow -->
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.4</version>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -128,8 +138,7 @@
             </modules>
         </profile>
 
-        <!-- Release profile. Ensures that the wasm file is released optimized and that the final
-        jar is signed -->
+        <!-- Release profile. Attaches sources and javadoc and signs all artifacts -->
         <profile>
             <id>release</id>
             <activation>
@@ -140,18 +149,6 @@
             </activation>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.9.0</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
-                        </configuration>
-                    </plugin>
-
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
@@ -188,14 +185,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                    </plugin>
-
-                    <plugin>
-                        <artifactId>maven-release-plugin</artifactId>
-                        <version>3.0.1</version>
-                        <configuration>
-                            <tagNameFormat>v@{project.version}</tagNameFormat>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
