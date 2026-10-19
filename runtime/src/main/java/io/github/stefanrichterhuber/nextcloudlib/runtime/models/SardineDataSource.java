@@ -11,6 +11,7 @@ import java.util.Objects;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.WebDavPaths;
 import jakarta.activation.DataSource;
 
 /**
@@ -81,7 +82,7 @@ public class SardineDataSource implements DataSource {
             path = path.substring(0, path.length() - 1);
         }
         final String name = path.substring(path.lastIndexOf('/') + 1);
-        return name.replace("%20", " ");
+        return WebDavPaths.decode(name);
     }
 
     @Override

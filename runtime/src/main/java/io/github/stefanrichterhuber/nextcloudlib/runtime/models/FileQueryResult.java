@@ -14,6 +14,7 @@ import com.github.sardine.model.Prop;
 import com.github.sardine.model.Response;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Property;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.WebDavPaths;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.activation.DataSource;
 
@@ -51,7 +52,7 @@ public class FileQueryResult {
             // Path without user name prefix
             path = path.substring(path.indexOf("/") + 1);
 
-            return path;
+            return WebDavPaths.decode(path);
         }
 
         public String toString() {

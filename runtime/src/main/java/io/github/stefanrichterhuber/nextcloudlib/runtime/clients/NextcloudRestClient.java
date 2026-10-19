@@ -72,7 +72,7 @@ public interface NextcloudRestClient {
     /**
      * Gets information about a user by their user ID
      * 
-     * @param userId
+     * @param userId The user ID of the user to retrieve information for
      * @return
      */
     @GET

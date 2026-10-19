@@ -45,9 +45,22 @@
         </dependency>
 
         <dependency>
-            <groupId>io.quarkiverse.tika</groupId>
-            <artifactId>quarkus-tika</artifactId>
-            <version>2.3.2</version>
+            <!-- Apache HttpClient 4 used by Sardine, with its native image support -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-apache-httpclient</artifactId>
+        </dependency>
+
+        <!-- Only the charset detection of Tika is used. The full quarkus-tika would pull in POI,
+        PDFBox and AWT, which bloat (and break) native images of every application -->
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-parser-text-module</artifactId>
+            <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>io.github.java-diff-utils</groupId>

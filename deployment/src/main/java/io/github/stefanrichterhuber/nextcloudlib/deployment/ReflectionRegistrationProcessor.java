@@ -1,11 +1,20 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Stream;
+
 import org.apache.http.auth.AuthScheme;
+import org.apache.http.auth.ChallengeState;
 
 import org.apache.http.auth.ContextAwareAuthScheme;
 import org.apache.http.impl.auth.AuthSchemeBase;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.auth.RFC2617Scheme;
+import org.jboss.jandex.DotName;
 
 import com.github.sardine.DavResource;
 import com.github.sardine.model.Ace;
@@ -80,6 +89,9 @@ import com.github.sardine.model.Write;
 import com.github.sardine.model.WriteContent;
 import com.github.sardine.model.WriteProperties;
 
+import biweekly.parameter.EnumParameterValue;
+import ezvcard.parameter.VCardParameter;
+
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient.InitiateLoginFlowV2Response;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient.NextcloudAppCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient.AddCommentRequest;
@@ -94,7 +106,10 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.OCSMessage;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
+import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
+import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 
 /**
@@ -108,13 +123,15 @@ public class ReflectionRegistrationProcessor {
      * Produces a {@link ReflectiveClassBuildItem} with constructors, methods, and
      * fields enabled for all Sardine model types, Apache HTTP auth scheme types,
      * and Nextcloud lib domain classes that are accessed via reflection at runtime
-     * (e.g. Jackson deserialization, JAXB unmarshalling).
+     * (e.g. Jackson deserialization, JAXB unmarshalling). Nested classes are
+     * registered as well, e.g. the polymorphic event payloads of
+     * {@link NextcloudEvent} which Jackson only reaches through annotations.
      *
      * @return the reflective-class registration build item
      */
     @BuildStep
     ReflectiveClassBuildItem registerForReflection() {
-        return ReflectiveClassBuildItem.builder(
+        return ReflectiveClassBuildItem.builder(withNestedClasses(
                 // Sardine models
                 Multistatus.class, Response.class, DavResource.class, Propstat.class, Report.class,
                 Collection.class, Ace.class, Acl.class, Activelock.class, All.class, Allprop.class, Authenticated.class,
@@ -146,10 +163,77 @@ public class ReflectionRegistrationProcessor {
                 InitiateLoginFlowV2Response.class,
                 NextcloudAppCredentials.class,
                 CreateSystemTagRequest.class,
-                AddCommentRequest.class)
+                AddCommentRequest.class))
                 .constructors(true)
                 .methods(true)
                 .fields(true)
                 .build();
+    }
+
+    /**
+     * Registers the Apache HTTP auth scheme types for Java serialization. Sardine
+     * enables preemptive authentication by putting a {@link BasicScheme} into a
+     * {@code BasicAuthCache}, which stores it serialized. Without this
+     * registration every WebDAV request fails in a native image.
+     *
+     * @return the serialization registration build item
+     */
+    @BuildStep
+    ReflectiveClassBuildItem registerAuthSchemesForSerialization() {
+        return ReflectiveClassBuildItem.builder(
+                BasicScheme.class, RFC2617Scheme.class, AuthSchemeBase.class, ChallengeState.class,
+                HashMap.class)
+                .serialization(true)
+                .build();
+    }
+
+    /**
+     * Adds the Jandex index of the vCard and iCalendar libraries, which are not
+     * indexed by default.
+     *
+     * @param indexDependencies producer for additional indexed dependencies
+     */
+    @BuildStep
+    void indexPimLibraries(BuildProducer<IndexDependencyBuildItem> indexDependencies) {
+        indexDependencies.produce(new IndexDependencyBuildItem("com.googlecode.ez-vcard", "ez-vcard"));
+        indexDependencies.produce(new IndexDependencyBuildItem("net.sf.biweekly", "biweekly"));
+    }
+
+    /**
+     * Registers the parameter value classes of ez-vcard and biweekly. Both
+     * libraries look up the predefined values through the public static fields
+     * of these classes and create new values through their constructors.
+     *
+     * @param index combined index, including the vCard and iCalendar libraries
+     * @return the reflective-class registration build item
+     */
+    @BuildStep
+    ReflectiveClassBuildItem registerPimParameterClasses(CombinedIndexBuildItem index) {
+        final String[] classes = Stream.of(VCardParameter.class, EnumParameterValue.class)
+                .flatMap(base -> Stream.concat(Stream.of(base.getName()),
+                        index.getIndex().getAllKnownSubclasses(DotName.createSimple(base)).stream()
+                                .map(c -> c.name().toString())))
+                .toArray(String[]::new);
+        return ReflectiveClassBuildItem.builder(classes)
+                .constructors(true)
+                .fields(true)
+                .build();
+    }
+
+    /**
+     * Returns the given classes together with all their (transitively) nested
+     * classes.
+     */
+    private static Class<?>[] withNestedClasses(Class<?>... roots) {
+        final List<Class<?>> result = new ArrayList<>();
+        final Deque<Class<?>> todo = new ArrayDeque<>(List.of(roots));
+        while (!todo.isEmpty()) {
+            final Class<?> c = todo.pop();
+            if (!result.contains(c)) {
+                result.add(c);
+                todo.addAll(List.of(c.getDeclaredClasses()));
+            }
+        }
+        return result.toArray(Class<?>[]::new);
     }
 }

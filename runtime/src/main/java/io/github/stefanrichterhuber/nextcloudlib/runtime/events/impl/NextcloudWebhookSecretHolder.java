@@ -23,8 +23,6 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 public class NextcloudWebhookSecretHolder {
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
     @Inject
     Logger logger;
 
@@ -37,7 +35,9 @@ public class NextcloudWebhookSecretHolder {
     void init() {
         secret = config.secret().orElseGet(() -> {
             byte[] bytes = new byte[32];
-            SECURE_RANDOM.nextBytes(bytes);
+            // Created on demand rather than in a static field: in a native image a static
+            // instance would be initialized at build time, with its seed baked into the binary
+            new SecureRandom().nextBytes(bytes);
             String generated = HexFormat.of().formatHex(bytes);
             logger.warn("nextcloud.webhook.secret is not configured. " +
                     "A random secret has been generated for this startup. " +

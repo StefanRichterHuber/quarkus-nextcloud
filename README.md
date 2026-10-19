@@ -7,7 +7,7 @@
 
 > **Disclaimer:** This project is an independent community effort and is not affiliated with, maintained, or endorsed by the original [Nextcloud project](https://nextcloud.com/) or [Quarkus project](https://quarkus.io/)
 
-A Quarkus extension for building applications that interact with Nextcloud.
+A Quarkus extension for building applications that interact with Nextcloud. Zero-config start of development for  both external applications as well as Nextcloud ExApps with a Nextcloud Dev Service which automatically adapts to the currently required application features.
 
 **Main Features:**
 
@@ -16,6 +16,8 @@ A Quarkus extension for building applications that interact with Nextcloud.
 * Unified authentication system with pluggable `NextcloudAuthProvider`
 * Webhook event handling with zero-reflection build-time dispatch
 * Nextcloud ExApp / AppAPI support for developing first-class Nextcloud external applications
+* Dev UI with special support to webhook events
+* Full native-image support
 
 ---
 
@@ -41,7 +43,7 @@ A Quarkus extension for building applications that interact with Nextcloud.
       - [Provided lifecycle endpoints](#provided-lifecycle-endpoints)
       - [Dev Services](#dev-services)
     - [Dev UI](#dev-ui)
-  - [Limits](#limits)
+  - [Native image](#native-image)
 
 ---
 
@@ -344,6 +346,32 @@ events kept is configured with `nextcloud.dev-ui.max-events` (default `100`).
 
 ---
 
-## Limits
+## Native image
 
-* Native image support is partially prepared but not thoroughly tested.
+The extension supports native executables. Native support is verified by the `native-tests` module, which
+builds a native application with the extension and runs scenarios inside the binary against the Nextcloud
+Dev Service.
+
+The tests focus on the parts that are most likely to break in a native image: code using third-party
+libraries outside the Quarkus native support, or reflection that Quarkus cannot detect at build time.
+
+| Area | Why it is at risk | Tested natively |
+| --- | --- | --- |
+| WebDAV files (upload, download, list, move, copy, ETags, locks, versions, search) | Sardine (JAXB, Apache HttpClient, serialized auth schemes) | yes |
+| Comments, system tags | Sardine with Nextcloud-specific properties | yes |
+| Calendars, contacts | biweekly / ez-vcard look up values by reflection | yes |
+| Webhook events and filter expressions | Polymorphic Jackson payloads, generated invokers | yes |
+| Diffs, user info / security identity | java-diff-utils, Tika charset detection, manual Jackson mapping | yes |
+| ExApp (AppAPI) mode | Different binary (build-time configuration), lifecycle routes | smoke test |
+| OIDC, login flow, OCS user API | Plain Quarkus REST clients | no, JVM tests only |
+
+The auth mode is partly fixed at build time, so one binary is built and tested per mode. The binary is built
+inside a container, so only Docker is required. It is a Linux executable, so run the tests on Linux (or in
+WSL 2 on Windows):
+
+```shell script
+mvn install -DskipTests
+mvn verify -Pnative-tests -pl native-tests -Dnative.mode=password
+mvn verify -Pnative-tests -pl native-tests -Dnative.mode=exapp
+```
+

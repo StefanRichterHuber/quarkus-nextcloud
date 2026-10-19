@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Test;
 
 import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
@@ -17,6 +19,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -45,6 +48,45 @@ public class NextcloudUserInfoTest {
         assertNotNull(nextcloudUser2);
         assertEquals(user, nextcloudUser2.id());
 
+    }
+
+    @Test
+    public void createUser() {
+        String user = "user_u1";
+        String password = RandomStringUtils.secure().nextAlphanumeric(16);
+
+        assertTrue(userService.createUser(user, password, null, null, null, null, null, null));
+
+        NextcloudUserCredentials creds = new NextcloudUserCredentials(user, password, authProvider.getServer(),
+                Mode.APP_PASSWORD);
+
+        // Check if user works and can do requests
+        final Executor exec = new CredentialsAwareRequestScopedExecutor(Executors.newFixedThreadPool(4), creds);
+        final CompletableFuture<Boolean> testUserResult = CompletableFuture.supplyAsync(() -> {
+
+            if (!authProvider.getUser().equals(creds.loginName())) {
+                return false;
+            }
+            if (!authProvider.getCredentials().equals(creds)) {
+                return false;
+            }
+
+            NextcloudUser nextcloudUser = userService.getCurrentUserInfo();
+            if (nextcloudUser == null) {
+                return false;
+            }
+            return true;
+        }, exec);
+        assertTrue(testUserResult.join());
+
+        // Check lists users
+        List<String> users = userService.listUsers(null, null, null);
+        assertNotNull(users);
+        assertTrue(users.contains(user));
+        assertTrue(users.contains(authProvider.getUser()));
+
+        // Delete user
+        assertTrue(userService.deleteUser(user));
     }
 
     @Test

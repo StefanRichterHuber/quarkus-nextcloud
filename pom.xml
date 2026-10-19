@@ -24,6 +24,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.version>3.40.1</quarkus.version>
+        <tika.version>3.3.2</tika.version>
         <surefire-plugin.version>3.6.0</surefire-plugin.version>
     </properties>
 
@@ -59,14 +60,6 @@
                 <version>${quarkus.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <!-- Security overrides for transitive dependencies. Remove once the upstream libraries
-            ship the fixed versions themselves -->
-            <dependency>
-                <!-- via quarkus-tika (tika-parser-pkg-module): CVE-2026-97370, CVE-2026-86071 -->
-                <groupId>com.github.junrar</groupId>
-                <artifactId>junrar</artifactId>
-                <version>7.6.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -145,6 +138,16 @@
             <modules>
                 <module>integration-tests</module>
                 <module>coverage</module>
+            </modules>
+        </profile>
+
+        <!-- Builds a native executable per auth mode and runs the native scenarios against it.
+        Requires Docker. After mvn install -DskipTests:
+        mvn verify -Pnative-tests -pl native-tests -Dnative.mode=password|exapp -->
+        <profile>
+            <id>native-tests</id>
+            <modules>
+                <module>native-tests</module>
             </modules>
         </profile>
 
