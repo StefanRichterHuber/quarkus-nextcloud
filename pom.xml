@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.stefanrichterhuber</groupId>
     <artifactId>nextcloudlib-parent</artifactId>
-    <version>3.2.0</version>
+    <version>3.2.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Nextcloudlib - Parent</name>
     <description>A Quarkus extension to access Nextcloud</description>
@@ -49,7 +49,7 @@
         <developerConnection>scm:git:https://github.com/StefanRichterHuber/quarkus-nextcloud.git</developerConnection>
         <url>https://github.com/StefanRichterHuber/quarkus-nextcloud</url>
         <!-- Set to the release tag by the release workflow, HEAD during development -->
-        <tag>v3.2.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <dependencyManagement>
