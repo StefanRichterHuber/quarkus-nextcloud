@@ -2,10 +2,9 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.clients.impl;
 
 import java.io.IOException;
 import java.net.ProxySelector;
-import java.util.List;
 import java.util.Map;
 
-import org.apache.http.Header;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.ResponseHandler;
@@ -31,23 +30,27 @@ public class CustomHeaderSardineImpl extends SardineImpl {
      * @param headers HTTP Headers to apply to each request
      */
     public CustomHeaderSardineImpl(MultivaluedMap<String, String> headers) {
-        this.headers = headers;
         super();
-
+        this.headers = headers;
     }
 
     @Override
     protected HttpClientBuilder configure(ProxySelector selector, CredentialsProvider credentials) {
-        final List<? extends Header> customHeaders = headers.entrySet().stream()
-                .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
-                .map(e -> new BasicHeader(e.getKey(), e.getValue().get(0)))
-                .toList();
-
         // Do not pass credentials for basic auth, but generate our own headers from the
-        // provided MultivaluedMap
-        final HttpClientBuilder builder = super.configure(selector, null).setDefaultHeaders(customHeaders);
-
-        return builder;
+        // provided MultivaluedMap. This method is called from the super constructor,
+        // before this.headers is assigned, so the headers are resolved lazily per
+        // request instead of being passed as default headers here.
+        final HttpRequestInterceptor customHeaders = (request, context) -> {
+            if (headers == null || "CONNECT".equalsIgnoreCase(request.getRequestLine().getMethod())) {
+                return;
+            }
+            headers.forEach((name, values) -> {
+                if (values != null && !values.isEmpty()) {
+                    request.addHeader(new BasicHeader(name, values.get(0)));
+                }
+            });
+        };
+        return super.configure(selector, null).addInterceptorFirst(customHeaders);
     }
 
     /**

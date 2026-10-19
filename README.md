@@ -1,7 +1,7 @@
 # Quarkus Nextcloud Extension
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.stefanrichterhuber/nextcloudlib)](https://central.sonatype.com/artifact/io.github.stefanrichterhuber/nextcloudlib)
-[![Java 17+](https://img.shields.io/badge/Java-17+-brightgreen)](https://adoptium.net/)
+[![Java 21+](https://img.shields.io/badge/Java-21+-brightgreen)](https://adoptium.net/)
 [![Quarkus 3.x](https://img.shields.io/badge/Quarkus-3.x-4695EB?logo=quarkus&logoColor=white)](https://quarkus.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -21,15 +21,26 @@ A Quarkus extension for building applications that interact with Nextcloud.
 
 ## Table of Contents
 
-* [How to use](#how-to-use)
-* [Quick Start](#quick-start)
-* [Features](#features)
-  * [Authentication](#authentication)
-  * [CDI Services](#cdi-services)
-  * [Nextcloud Container as Dev Service](#nextcloud-container-as-dev-service)
-  * [Nextcloud Webhook Events](#nextcloud-webhook-events)
-  * [Nextcloud AppAPI Support](#nextcloud-appapi-support)
-* [Limits](#limits)
+- [Quarkus Nextcloud Extension](#quarkus-nextcloud-extension)
+  - [Table of Contents](#table-of-contents)
+  - [How to use](#how-to-use)
+  - [Quick Start](#quick-start)
+  - [Features](#features)
+    - [Global Configuration](#global-configuration)
+    - [Authentication](#authentication)
+      - [OIDC support](#oidc-support)
+    - [CDI Services](#cdi-services)
+    - [Nextcloud Container as Dev Service](#nextcloud-container-as-dev-service)
+    - [Nextcloud Webhook Events](#nextcloud-webhook-events)
+      - [Receiving events](#receiving-events)
+      - [How it works](#how-it-works)
+      - [Configuration](#configuration)
+      - [Prerequisites](#prerequisites)
+    - [Nextcloud AppAPI Support](#nextcloud-appapi-support)
+      - [ExApp Configuration](#exapp-configuration)
+      - [Provided lifecycle endpoints](#provided-lifecycle-endpoints)
+      - [Dev Services](#dev-services)
+  - [Limits](#limits)
 
 ---
 
