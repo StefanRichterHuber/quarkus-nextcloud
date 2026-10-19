@@ -40,6 +40,7 @@ A Quarkus extension for building applications that interact with Nextcloud.
       - [ExApp Configuration](#exapp-configuration)
       - [Provided lifecycle endpoints](#provided-lifecycle-endpoints)
       - [Dev Services](#dev-services)
+    - [Dev UI](#dev-ui)
   - [Limits](#limits)
 
 ---
@@ -180,6 +181,7 @@ The dev service injects the following properties into the running application:
 | `nextcloud.password` | Nextcloud password |
 | `nextcloud.admin-user` | Admin username (same as `nextcloud.user` for dev services) |
 | `nextcloud.admin-password` | Admin password (same as `nextcloud.password` for dev services) |
+| `nextcloud.dev-services.container-id`, `nextcloud.dev-services.url`, `nextcloud.dev-services.apps`, `nextcloud.dev-services.auth-mode` | Information about the started container, used by the [Dev UI](#dev-ui) |
 
 ### Nextcloud Webhook Events
 
@@ -299,6 +301,46 @@ service additionally:
 * Registers a local [AppAPI daemon](https://docs.nextcloud.com/server/stable/admin_manual/exapps_management/ManagingDeployDaemons.html) that bridges the Nextcloud Docker container to the host via `host.docker.internal`
 * Registers this Quarkus app as an ExApp within that daemon with the configured port (`quarkus.http.test-port` in test mode, `quarkus.http.port` in dev mode)
 * Enables the ExApp in Nextcloud
+
+### Dev UI
+
+In dev mode (`quarkus:dev`) the Quarkus Dev UI (`/q/dev-ui`) has a **Nextcloud** card with these pages:
+
+| Page | Description |
+| --- | --- |
+| Open Nextcloud | Opens the connected Nextcloud instance in a new browser tab |
+| Instance | URL, user, password (with copy buttons), auth mode, Nextcloud version, installed apps and container id. Log in to the dev service instance with these credentials, e.g. to test your ExApp or trigger events |
+| Events | Live list of the webhook events received, with status (`OK`, `FAILED` incl. stack trace, `NO_HANDLER`, …), handler, triggering user and duration. Events can be replayed as received or after editing their JSON (*Edit & Replay*) |
+| Handlers | All `@OnNextcloudEvent` methods with their events, filters and the webhooks registered for them in Nextcloud. *Re-register webhooks* deletes and re-creates them |
+| Tools | *Run webhook worker now* (sends queued webhook events immediately) and an `occ` console for the dev service container |
+| ExApp | Only with `nextcloud.exapp.enabled=true`: last heartbeat, init progress, enabled state and buttons to enable / disable the ExApp |
+
+**Local dev service vs. external instance.** The Dev UI checks whether the application is connected to the
+Nextcloud container started by this extension or to an instance configured with `nextcloud.url`. A
+Nextcloud you started yourself on `localhost` also counts as external. The mode is shown as a badge on
+every page (*Local dev service*, *External: host* or *Not reachable*). Against an external instance:
+
+* the password is never shown
+* the `occ` console, the webhook worker and ExApp enable / disable are not available
+* replaying events and re-registering webhooks require a confirmation, since handlers may change data
+  on that instance
+
+The server enforces these restrictions, not only the UI.
+
+**Replay credentials.** A replay uses the ephemeral auth token sent with the original event. If that token was
+already deleted (`nextcloud.webhook.cleanup-auth-tokens=true`), a temporary app password is created for the
+user that triggered the original event, and handlers requesting a token run with it. Like the token of a real
+webhook event, it is deleted again after the handler finished. A replay never deletes the original token.
+Note that tokens expire in Nextcloud after one hour.
+
+To create the temporary app password, the password of that user is needed. It is taken from the configuration
+if the user is `nextcloud.user` or `nextcloud.admin-user` (e.g. the admin of the dev service). Otherwise the
+Dev UI asks for it. Entered passwords are kept in memory of the running application for further replays and
+are asked for again if Nextcloud rejects them.
+
+**Event storage.** Captured events are kept in memory only, in dev mode only, and survive hot reloads. They
+contain the ephemeral auth tokens of the triggering users; the tokens are masked in the UI. The number of
+events kept is configured with `nextcloud.dev-ui.max-events` (default `100`).
 
 ---
 

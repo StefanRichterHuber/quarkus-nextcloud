@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.events;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,12 +20,17 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudSystemTagService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudExAppStateTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudEventTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
+import io.quarkus.arc.ClientProxy;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
@@ -57,6 +63,21 @@ public class NextcloudEventTest {
 
     @Inject
     TestEventHandlers testEventHandlers;
+
+    @Inject
+    NextcloudEventTracker eventTracker;
+
+    @Inject
+    NextcloudExAppStateTracker exAppStateTracker;
+
+    /**
+     * Outside of local dev mode no events or ExApp state are recorded
+     */
+    @Test
+    public void devUiTrackersAreNoopInTestMode() {
+        assertInstanceOf(NoopNextcloudEventTracker.class, ClientProxy.unwrap(eventTracker));
+        assertInstanceOf(NoopNextcloudExAppStateTracker.class, ClientProxy.unwrap(exAppStateTracker));
+    }
 
     @Inject
     NextcloudAuthProvider authProvider;

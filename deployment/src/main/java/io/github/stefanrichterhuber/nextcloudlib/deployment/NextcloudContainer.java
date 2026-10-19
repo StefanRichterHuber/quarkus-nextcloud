@@ -258,12 +258,7 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
         if (isRunning()) {
             // Container is running, immediately execute command with the proper user
             // www-data
-            final List<String> commandList = new ArrayList<>(8 + command.length);
-            commandList.addAll(
-                    List.of("runuser", "--user", "www-data", "--", "/usr/local/bin/php", "-d",
-                            "memory_limit=-1", "/var/www/html/occ"));
-            commandList.addAll(List.of(command));
-            return exec(commandList.toArray(new String[commandList.size()]));
+            return exec(runningOccCommand(command));
         } else {
             final List<String> commandList = new ArrayList<>(4 + command.length);
             commandList.addAll(
@@ -272,6 +267,42 @@ public class NextcloudContainer extends GenericContainer<NextcloudContainer> {
             commandList.addAll(List.of(command));
             return exec(commandList.toArray(new String[commandList.size()]));
         }
+    }
+
+    /**
+     * Executes an {@code occ} command in the running container and returns its
+     * full result (exit code, stdout, stderr). Used by the Dev UI.
+     *
+     * @param command occ sub-command and its arguments
+     * @return a future completing with the result of the command, or failing with
+     *         an {@link IllegalStateException} if the container is not running
+     */
+    public CompletableFuture<ExecResult> occWithResult(String... command) {
+        if (!isRunning()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Nextcloud container is not running"));
+        }
+        final String[] fullCommand = runningOccCommand(command);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                log.debugf("Execute command in running container: %s", String.join(" ", fullCommand));
+                return execInContainer(fullCommand);
+            } catch (UnsupportedOperationException | IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, occExecutor);
+    }
+
+    /**
+     * Builds the command line to run {@code occ} in the running container as user
+     * {@code www-data}
+     */
+    private static String[] runningOccCommand(String... command) {
+        final List<String> commandList = new ArrayList<>(8 + command.length);
+        commandList.addAll(
+                List.of("runuser", "--user", "www-data", "--", "/usr/local/bin/php", "-d",
+                        "memory_limit=-1", "/var/www/html/occ"));
+        commandList.addAll(List.of(command));
+        return commandList.toArray(new String[commandList.size()]);
     }
 
     /**

@@ -1,9 +1,11 @@
-name: nextcloudlib
+name: Quarkus Nextcloud
 description: "Library to access Nextcloud and build ExApps for Nextcloud"
 metadata:
-#  keywords:
-#    - nextcloud
+  keywords:
+    - nextcloud
+    - webdav
+    - exapp
 #  guide: ... # To create and publish this guide, see https://github.com/quarkiverse/quarkiverse/wiki#documenting-your-extension
-#  categories:
-#    - "miscellaneous"
+  categories:
+    - "integration"
 #  status: "preview"
