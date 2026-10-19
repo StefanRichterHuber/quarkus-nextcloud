@@ -15,6 +15,7 @@ public record OCSMessage<T>(OCSMessage.OCS<T> ocs) {
         return ocs != null && ocs.isOk();
     }
 
+    @RegisterForReflection
     public static record OCS<T>(OCS.Meta meta, T data) {
 
         /**
@@ -28,6 +29,7 @@ public record OCSMessage<T>(OCSMessage.OCS<T> ocs) {
             return meta != null && meta.isOk();
         }
 
+        @RegisterForReflection
         public static record Meta(String status, int statuscode, String message, String totalitems,
                 String itemsperpage) {
 

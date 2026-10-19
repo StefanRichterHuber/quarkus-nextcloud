@@ -1,8 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudEventTracker;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCommentService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
@@ -14,11 +12,14 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextclou
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.ConfiguredNextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIAdminClientHeaders;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAPIClientHeaders;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudAdminRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudLoginFlowRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudWebhookRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.QueryIOInterceptor;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.SardineProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudEventTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpressionProducer;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutorProvider;
@@ -75,6 +76,7 @@ class NextcloudlibProcessor {
     @BuildStep
     AdditionalIndexedClassesBuildItem indexRestClient() {
         return new AdditionalIndexedClassesBuildItem(
+                NextcloudAdminRestClient.class.getName(),
                 NextcloudRestClient.class.getName(),
                 NextcloudWebhookRestClient.class.getName(),
                 ExAppApiRestClient.class.getName(),

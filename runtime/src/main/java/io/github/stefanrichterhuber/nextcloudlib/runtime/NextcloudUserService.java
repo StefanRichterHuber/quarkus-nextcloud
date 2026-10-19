@@ -3,11 +3,14 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 
 import org.jboss.logging.Logger;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudSecurityIdentity;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudAdminRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudRestClient.GetAppPasswordResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUser;
@@ -18,6 +21,7 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.SecurityContext;
 
@@ -256,6 +260,200 @@ public class NextcloudUserService {
         // If a non 200 status code is returned the client should still proceed with
         // removing the account.
         return true;
-
     }
+
+    /**
+     * Lists all users on the Nextcloud server. This method requires administrative
+     * privileges (NextcloudAuthProvider with {@code @NextcloudAdmin} qualifier).
+     * 
+     * @param search Optional search string to filter users
+     * @param limit  Optional limit of users to return
+     * @param offset Optional offset for pagination
+     * @return List of usernames, or an empty list if the operation fails or no
+     *         users are found
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
+     *      Admin Manual: Instruction Set for Users</a>
+     */
+    public List<String> listUsers(String search, Integer limit, Integer offset) {
+        final NextcloudAdminRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudAdminRestClient.class);
+
+        try {
+            final OCSMessage<NextcloudAdminRestClient.UserListResponse> response = client.listUsers(search, limit,
+                    offset);
+            if (response.isOk()) {
+                return response.ocs().data().users();
+            } else {
+                return Collections.emptyList();
+            }
+        } catch (WebApplicationException e) {
+            log.debugf(e, "Failed to fetch user list");
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Creates a new user on the Nextcloud server. This method requires
+     * administrative
+     * privileges (NextcloudAuthProvider with {@code @NextcloudAdmin} qualifier).
+     * 
+     * @param userId      the required username for the new user, required
+     * @param password    the password for the new user, leave empty to send welcome
+     *                    mail
+     * @param displayName the display name for the new user
+     * @param email       the email for the new user, required if password empty
+     * @param groups      the groups for the new user
+     * @param subAdmin    the groups in which the new user is sub admin
+     * @param quota       the quota for the new user, leave empty for default
+     * @param language    the language for the new user
+     * @return Success of the operation
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
+     *      Admin Manual: Instruction Set for Users</a>
+     */
+    public boolean createUser(@FormParam("userid") String userId,
+            String password,
+            String displayName,
+            String email,
+            List<String> groups,
+            List<String> subAdmin,
+            String quota,
+            String language) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId must not be null or empty");
+        }
+        if (password == null || password.isBlank()) {
+            // Either password or email must be provided
+            if (email == null || email.isBlank()) {
+                throw new IllegalArgumentException("Either password or email must be provided");
+            }
+        }
+
+        final NextcloudAdminRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudAdminRestClient.class);
+
+        try {
+            final OCSMessage<NextcloudAdminRestClient.UserInfoResponse> response = client.createUser(userId, password,
+                    displayName, email, groups, subAdmin, quota, language);
+            if (response.isOk()) {
+                log.debugf("Successfully created user %s", userId);
+                return true;
+            } else {
+                log.errorf("Failed to create user %s", userId);
+                return false;
+            }
+        } catch (WebApplicationException e) {
+            log.errorf(e, "Failed to create user %s", userId);
+            return false;
+        }
+    }
+
+    /**
+     * Deletes a user by their username. This method requires administrative
+     * privileges (NextcloudAuthProvider with {@code @NextcloudAdmin} qualifier).
+     * 
+     * @param user Username of the user to delete
+     * @return Success of the operation
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
+     *      Admin Manual: Instruction Set for Users</a>
+     */
+    public boolean deleteUser(String user) {
+        if (user == null || user.isBlank()) {
+            throw new IllegalArgumentException("user must not be null or empty");
+        }
+        final NextcloudAdminRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudAdminRestClient.class);
+
+        try {
+            final OCSMessage<Object> response = client.deleteUser(user);
+            if (response.isOk()) {
+                log.debugf("Successfully deleted user %s", user);
+                return true;
+            } else {
+                log.errorf("Failed to delete user %s", user);
+                return false;
+            }
+        } catch (WebApplicationException e) {
+            log.errorf(e, "Failed to delete user %s", user);
+            return false;
+        }
+    }
+
+    /**
+     * Enables a user by their username. This method requires administrative
+     * privileges (NextcloudAuthProvider with {@code @NextcloudAdmin} qualifier).
+     * 
+     * @param user Username of the user to enable
+     * @return
+     * 
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
+     *      Admin Manual: Instruction Set for Users</a>
+     */
+    public boolean enableUser(String user) {
+        if (user == null || user.isBlank()) {
+            throw new IllegalArgumentException("user must not be null or empty");
+        }
+        final NextcloudAdminRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudAdminRestClient.class);
+
+        try {
+            final OCSMessage<Object> response = client.enableUser(user);
+            if (response.isOk()) {
+                log.debugf("Successfully enabled user %s", user);
+                return true;
+            } else {
+                log.errorf("Failed to enable user %s", user);
+                return false;
+            }
+        } catch (WebApplicationException e) {
+            log.errorf(e, "Failed to enable user %s", user);
+            return false;
+        }
+    }
+
+    /**
+     * Disables a user by their username. This method requires administrative
+     * privileges (NextcloudAuthProvider with {@code @NextcloudAdmin} qualifier).
+     * 
+     * @param user Username of the user to disable
+     * @return
+     * @see <a href=
+     *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
+     *      Admin Manual: Instruction Set for Users</a>
+     */
+    public boolean disableUser(String user) {
+        if (user == null || user.isBlank()) {
+            throw new IllegalArgumentException("user must not be null or empty");
+        }
+        final NextcloudAdminRestClient client = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(authProvider.getServer()))
+                .followRedirects(true)
+                .build(NextcloudAdminRestClient.class);
+
+        try {
+            final OCSMessage<Object> response = client.disableUser(user);
+            if (response.isOk()) {
+                log.debugf("Successfully disabled user %s", user);
+                return true;
+            } else {
+                log.errorf("Failed to disable user %s", user);
+                return false;
+            }
+        } catch (WebApplicationException e) {
+            log.errorf(e, "Failed to disable user %s", user);
+            return false;
+        }
+    }
+
 }
