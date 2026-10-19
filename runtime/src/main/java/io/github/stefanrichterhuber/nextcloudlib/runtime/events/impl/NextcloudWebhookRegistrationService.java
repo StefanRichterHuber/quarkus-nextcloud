@@ -174,6 +174,17 @@ public class NextcloudWebhookRegistrationService {
      * {@link NextcloudEventInvoker} instances.
      */
     public void registerWebhooks() {
+        registerWebhooks(config.alwaysRegister());
+    }
+
+    /**
+     * Registers webhooks for all event class names declared by the known
+     * {@link NextcloudEventInvoker} instances.
+     *
+     * @param alwaysRegister if {@code true}, already registered matching webhooks
+     *                       are deleted and registered again
+     */
+    public void registerWebhooks(boolean alwaysRegister) {
         final NextcloudWebhookRestClient client = buildClient();
         final List<WebhookMessage> registered = fetchExistingWebhooks(client);
         final String webhookBaseUrl = webhookUrl();
@@ -197,7 +208,7 @@ public class NextcloudWebhookRegistrationService {
                         .toList();
 
                 if (!matchingWebhooks.isEmpty()) {
-                    if (config.alwaysRegister()) {
+                    if (alwaysRegister) {
                         for (WebhookMessage existing : matchingWebhooks) {
                             logger.infof("Re-registering webhook for %s at %s (nextcloud.webhook.alwaysRegister=true)",
                                     existing.event(), url);
@@ -298,6 +309,53 @@ public class NextcloudWebhookRegistrationService {
      */
     public NextcloudEventInvoker getEventHandlerById(String id) {
         return Optional.ofNullable(invokersById.get(id)).map(i -> i.invoker()).orElse(null);
+    }
+
+    /**
+     * Description of a known event handler and the webhooks registered for it in
+     * Nextcloud
+     *
+     * @param id                Id of the handler (last path segment of the
+     *                          webhook url)
+     * @param invokerClassName  Name of the generated invoker class
+     * @param events            Nextcloud event classes the handler listens to
+     * @param filter            Event filter, may be null
+     * @param requestAuthToken  If the handler requests an auth token
+     * @param registeredWebhooks Webhooks registered in Nextcloud for this handler
+     */
+    public record HandlerInfo(String id, String invokerClassName, List<String> events, String filter,
+            boolean requestAuthToken, List<RegisteredWebhook> registeredWebhooks) {
+    }
+
+    /**
+     * A webhook registered in Nextcloud
+     *
+     * @param id    Nextcloud webhook id
+     * @param event Nextcloud event class
+     * @param uri   Url Nextcloud calls
+     */
+    public record RegisteredWebhook(String id, String event, String uri) {
+    }
+
+    /**
+     * Lists all known event handlers together with the webhooks registered for
+     * them during this application's lifetime. Used by the Dev UI.
+     *
+     * @return Handler descriptions
+     */
+    public List<HandlerInfo> listHandlers() {
+        final List<HandlerInfo> result = new ArrayList<>();
+        for (NextcloudEventInvoker invoker : invokers) {
+            final String invokerId = DigestUtils.sha256Hex(invoker.getClass().getName());
+            final List<RegisteredWebhook> webhooks = Optional.ofNullable(invokersById.get(invokerId))
+                    .map(i -> i.webhooks().stream()
+                            .map(w -> new RegisteredWebhook(w.id(), w.event(), w.uri()))
+                            .toList())
+                    .orElse(List.of());
+            result.add(new HandlerInfo(invokerId, invoker.getClass().getName(), List.of(invoker.events()),
+                    invoker.filter(), invoker.requestAuthToken(), webhooks));
+        }
+        return result;
     }
 
 }

@@ -5,6 +5,7 @@ import java.util.Objects;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppDisabledEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppEnabledEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
@@ -24,8 +25,10 @@ public class NextcloudExAppEnabledHandler implements io.vertx.core.Handler<Routi
     ManagedExecutor executorService;
     @SuppressWarnings("rawtypes")
     Event ev;
+    NextcloudExAppStateTracker stateTracker;
 
     public NextcloudExAppEnabledHandler() {
+        stateTracker = Arc.container().select(NextcloudExAppStateTracker.class).get();
         executorService = Arc.container().select(ManagedExecutor.class).get();
         ev = Arc.container().select(Event.class).get();
     }
@@ -49,6 +52,7 @@ public class NextcloudExAppEnabledHandler implements io.vertx.core.Handler<Routi
         }
 
         final String enabled = event.request().getParam("enabled");
+        stateTracker.enabled(Objects.equals(enabled, "1"));
 
         new CredentialsAwareRequestScopedExecutor(executorService, credentials).execute(() -> {
             if (Objects.equals(enabled, "1")) {

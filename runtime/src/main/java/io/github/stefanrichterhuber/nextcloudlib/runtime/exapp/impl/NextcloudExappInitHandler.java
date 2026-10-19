@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClient.AppInitProgress;
@@ -31,6 +32,9 @@ import jakarta.ws.rs.core.MediaType;
  */
 public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingContext> {
     private static final Logger LOG = Logger.getLogger(NextcloudExappInitHandler.class);
+
+    private final NextcloudExAppStateTracker stateTracker = Arc.container()
+            .select(NextcloudExAppStateTracker.class).get();
 
     /**
      * Creates a new instance of {@link ExAppApiRestClient} with the configured
@@ -94,9 +98,11 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
                     } else {
                         realItem = item;
                     }
+                    stateTracker.initProgress(realItem);
                     exec.execute(() -> client.reportAppInitProgress(AppInitProgress.ok(realItem)));
                 },
                 t -> {
+                    stateTracker.initError(t.getMessage());
                     exec.execute(() -> client.reportAppInitProgress(AppInitProgress.error(0, t.getMessage())));
                     ;
                 });

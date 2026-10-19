@@ -68,6 +68,11 @@ public class NextcloudDevServicesResultBuildItem {
     public static final String NEXTCLOUD_WEBHOOK_HOST_PROPERTY = "nextcloud.webhook.host";
 
     public static final String NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY = "nextcloud.dev-services.container-id";
+    // Used by the Dev UI to detect if the application is connected to this dev
+    // service or to an external instance
+    public static final String NEXTCLOUD_DEV_SERVICE_URL_PROPERTY = "nextcloud.dev-services.url";
+    public static final String NEXTCLOUD_DEV_SERVICE_APPS_PROPERTY = "nextcloud.dev-services.apps";
+    public static final String NEXTCLOUD_DEV_SERVICE_AUTH_MODE_PROPERTY = "nextcloud.dev-services.auth-mode";
 
     public static final String NEXTCLOUD_OIDC_IDP_PROPERTY = "quarkus.oidc.auth-server-url";
     public static final String NEXTCLOUD_OIDC_CLIENT_ID_PROPERTY = "quarkus.oidc.client-id"; // QUARKUS_OIDC_CLIENT_ID
@@ -80,7 +85,7 @@ public class NextcloudDevServicesResultBuildItem {
             + NEXTCLOUD_URL_PROPERTY + ", " + NEXTCLOUD_USER_PROPERTY + " and "
             + NEXTCLOUD_PASSWORD_PROPERTY
             + " are set to allow connecting to this instance using the standard Nextcloud client libraries.";
-    private static final String[] OCC_COMMAND_WEBHOOK_CALL = { "background-job:worker", "-v", "-t", "20",
+    static final String[] OCC_COMMAND_WEBHOOK_CALL = { "background-job:worker", "-v", "-t", "20",
             "OCA\\WebhookListeners\\BackgroundJobs\\WebhookCall" };
 
     private static final Logger log = Logger.getLogger(NextcloudDevServicesResultBuildItem.class);
@@ -174,6 +179,7 @@ public class NextcloudDevServicesResultBuildItem {
         // Necessary to reach external apps like this one
         container.withExtraHost(HOST_NAME_FOR_DOCKER_CONTAINER, "host-gateway");
         container.start();
+        NextcloudDevServiceState.setContainer(container);
 
         // ------ Container started -----------
         // Prepare configuration to return
@@ -185,6 +191,8 @@ public class NextcloudDevServicesResultBuildItem {
         configOverrides.put(NEXTCLOUD_URL_PROPERTY, newUrl);
 
         configOverrides.put(NEXTCLOUD_DEV_SERVICE_CONTAINER_ID_PROPERTY, container.getContainerId());
+        configOverrides.put(NEXTCLOUD_DEV_SERVICE_URL_PROPERTY, newUrl);
+        configOverrides.put(NEXTCLOUD_DEV_SERVICE_APPS_PROPERTY, String.join(",", apps));
 
         // Admin user and standard user are the same for dev service, so that the dev
         // service can be used for both admin and standard user scenarios. The password
@@ -207,15 +215,16 @@ public class NextcloudDevServicesResultBuildItem {
             configOverrides = installOIDC(container, configOverrides);
         }
 
-        String authMode = "'Plain App Password'";
+        String authMode = "Plain App Password";
         if (!appApiSupport && serviceConfig.enableOidc()) {
-            authMode = "'OIDC Token'";
+            authMode = "OIDC Token";
         } else if (appApiSupport) {
-            authMode = "'ExApp API'";
+            authMode = "ExApp API";
         }
+        configOverrides.put(NEXTCLOUD_DEV_SERVICE_AUTH_MODE_PROPERTY, authMode);
 
         log.infof(
-                "Started nextcloud dev instance at '%s' (container id %s) with apps %s with admin user <%s> and password <%s>. Authentication mode is %s. AppAPI support %s. Background job WebhookCall is %s",
+                "Started nextcloud dev instance at '%s' (container id %s) with apps %s with admin user <%s> and password <%s>. Authentication mode is '%s'. AppAPI support %s. Background job WebhookCall is %s",
                 newUrl,
                 container.getContainerId(),
                 apps, user, password, authMode, appApiSupport ? "enabled" : "not enabled",
@@ -236,15 +245,14 @@ public class NextcloudDevServicesResultBuildItem {
      */
     private int determineAppPort() {
         LaunchMode launchMode = LaunchMode.current();
-        final int appPort;
         if (launchMode == LaunchMode.TEST) {
-            appPort = ConfigProvider.getConfig().getValue("quarkus.http.test-port", Integer.class);
+            return ConfigProvider.getConfig().getOptionalValue("quarkus.http.test-port", Integer.class).orElse(8081);
         } else if (launchMode == LaunchMode.DEVELOPMENT) {
-            appPort = ConfigProvider.getConfig().getValue("quarkus.http.port", Integer.class);
+            return ConfigProvider.getConfig().getOptionalValue("quarkus.http.port", Integer.class).orElse(8080);
         } else {
-            appPort = 8080;
+            // Should not happen, but just in case, return default port
+            return 8080;
         }
-        return appPort;
     }
 
     /**
@@ -561,6 +569,7 @@ public class NextcloudDevServicesResultBuildItem {
                 String.class);
 
         final String appId = appName;
+        NextcloudDevServiceState.setExAppId(appId);
         final String appSecret = ConfigProvider.getConfig()
                 .getOptionalValue("nextcloud.app-api.secret", String.class)
                 .orElse(APP_API_DEFAULT_SECRET);

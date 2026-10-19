@@ -1,6 +1,8 @@
 package io.github.stefanrichterhuber.nextcloudlib.deployment;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCalendarService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudEventTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NoopNextcloudExAppStateTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCommentService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudContactService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
@@ -56,6 +58,10 @@ class NextcloudlibProcessor {
     AdditionalBeanBuildItem additionalUnremovableBeans() {
         return AdditionalBeanBuildItem.builder() //
                 .addBeanClass(SardineProvider.class)
+                // No-op trackers, looked up programmatically by the Vert.x handlers.
+                // Overridden in local dev mode by NextcloudDevUIProcessor#devTrackers
+                .addBeanClass(NoopNextcloudEventTracker.class)
+                .addBeanClass(NoopNextcloudExAppStateTracker.class)
                 .setUnremovable().build();
     }
 

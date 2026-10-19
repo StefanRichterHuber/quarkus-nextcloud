@@ -2,6 +2,8 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
@@ -9,6 +11,9 @@ import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker.CredentialSource;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker.Status;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDispatcher;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
@@ -47,6 +52,7 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
     private final NextcloudWebhookSecretHolder secretHolder;
     private final NextcloudEventDispatcher dispatcher;
     private final ObjectMapper mapper;
+    private final NextcloudEventTracker eventTracker;
 
     public NextcloudWebhookHandler() {
         config = Arc.container().select(NextcloudWebhookConfig.class)
@@ -58,6 +64,8 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
                 .get();
 
         mapper = Arc.container().select(ObjectMapper.class).get();
+
+        eventTracker = Arc.container().select(NextcloudEventTracker.class).get();
     }
 
     /**
@@ -118,16 +126,20 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
                                 new TypeReference<NextcloudEvent<Event>>() {
                                 });
 
-                        if (event.authentication() != null && event.authentication().trigger() != null) {
-                            final NextcloudUserCredentials credentials = event.authentication().trigger()
-                                    .toUserCredentials();
-                            dispatcher.dispatch(handlerId, event, credentials);
-                        } else {
-                            dispatcher.dispatch(handlerId, event, null);
-                        }
+                        final NextcloudUserCredentials credentials = event.authentication() != null
+                                && event.authentication().trigger() != null
+                                        ? event.authentication().trigger().toUserCredentials()
+                                        : null;
+                        final String captureId = eventTracker.capture(handlerId, body,
+                                event.event() != null ? event.event().className() : null, credentials, null,
+                                credentials != null ? CredentialSource.ORIGINAL : CredentialSource.NONE);
+                        dispatch(captureId, handlerId, event, credentials);
                         ctx.response().setStatusCode(200).end();
                     } catch (Exception e) {
                         LOG.errorf(e, "Failed to process webhook event body: %s", body);
+                        final String captureId = eventTracker.capture(handlerId, body, null, null, null,
+                                CredentialSource.NONE);
+                        eventTracker.complete(captureId, e);
                         ctx.response().setStatusCode(500).end();
                     }
                 })
@@ -140,6 +152,31 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
         // collection
         if (!ctx.request().isEnded()) {
             ctx.request().resume();
+        }
+    }
+
+    /**
+     * Dispatches the event. If the event was captured for the Dev UI (local dev
+     * mode only) and the default dispatcher is used, the outcome of the handler is
+     * recorded by the {@link NextcloudEventTracker}.
+     */
+    private void dispatch(String captureId, String handlerId, NextcloudEvent<Event> event,
+            NextcloudUserCredentials credentials) {
+        if (captureId == null) {
+            dispatcher.dispatch(handlerId, event, credentials);
+        } else if (dispatcher instanceof DefaultNextcloudEventDispatcher defaultDispatcher) {
+            final CompletableFuture<Void> result = defaultDispatcher.dispatchTracked(handlerId, event, credentials,
+                    true, () -> eventTracker.markTokenRevoked(captureId));
+            if (result == null) {
+                eventTracker.setStatus(captureId, Status.NO_HANDLER,
+                        "No handler registered for id " + handlerId);
+            } else {
+                result.whenComplete((v, err) -> eventTracker.complete(captureId,
+                        err instanceof CompletionException && err.getCause() != null ? err.getCause() : err));
+            }
+        } else {
+            dispatcher.dispatch(handlerId, event, credentials);
+            eventTracker.setStatus(captureId, Status.UNTRACKED, null);
         }
     }
 }

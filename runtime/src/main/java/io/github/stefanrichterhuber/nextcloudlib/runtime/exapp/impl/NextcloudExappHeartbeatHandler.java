@@ -1,5 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudExAppStateTracker;
+import io.quarkus.arc.Arc;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.ws.rs.core.MediaType;
 
@@ -10,6 +12,12 @@ import jakarta.ws.rs.core.MediaType;
  */
 public class NextcloudExappHeartbeatHandler implements io.vertx.core.Handler<RoutingContext> {
 
+    private final NextcloudExAppStateTracker stateTracker;
+
+    public NextcloudExappHeartbeatHandler() {
+        stateTracker = Arc.container().select(NextcloudExAppStateTracker.class).get();
+    }
+
     /**
      * Responds with HTTP 200 and a JSON body {@code {"status": "ok"}}.
      *
@@ -18,6 +26,7 @@ public class NextcloudExappHeartbeatHandler implements io.vertx.core.Handler<Rou
     @Override
     public void handle(RoutingContext event) {
         // TODO: Use quarkus healthcheck for this?
+        stateTracker.heartbeat();
         event.response().putHeader("Content-Type", MediaType.APPLICATION_JSON);
         event.response().send("{\"status\": \"ok\"}");
     }

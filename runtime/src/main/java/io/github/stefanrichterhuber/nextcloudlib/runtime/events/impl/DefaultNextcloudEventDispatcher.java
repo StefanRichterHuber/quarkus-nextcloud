@@ -48,6 +48,26 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
     @Override
     public void dispatch(String handlerId, NextcloudEvent<? extends Event> event,
             NextcloudUserCredentials credentials) {
+        dispatchTracked(handlerId, event, credentials, true, null);
+    }
+
+    /**
+     * Dispatches the event like {@link #dispatch}, but returns the outcome of the
+     * handler. Used by the Dev UI to track and replay events.
+     *
+     * @param handlerId      Id of the handler to invoke
+     * @param event          Event to dispatch
+     * @param credentials    Credentials to run the handler with, may be null
+     * @param cleanupToken   If the credentials are an ephemeral webhook token that
+     *                       should be deleted afterwards (see
+     *                       {@link NextcloudWebhookConfig#cleanupAuthTokens()}).
+     *                       Must be {@code false} for replays.
+     * @param onTokenRevoked Optional callback invoked after the token was deleted
+     * @return Future completing when the handler finished, or {@code null} if no
+     *         handler with the given id exists
+     */
+    public CompletableFuture<Void> dispatchTracked(String handlerId, NextcloudEvent<? extends Event> event,
+            NextcloudUserCredentials credentials, boolean cleanupToken, Runnable onTokenRevoked) {
         final boolean tokenProvided = credentials != null;
         final Executor executor = tokenProvided
                 ? new CredentialsAwareRequestScopedExecutor(scheduledExecutorService,
@@ -59,24 +79,27 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
                 : null;
         if (invoker == null) {
             logger.warnf("No NextcloudEventInvoker found for id '%s'", handlerId);
-            return;
+            return null;
         }
 
         try {
             // The stage returned by the invoker completes when the handler has finished
             // its (possibly asynchronous) work. Only then the temporary token may be
             // removed - regardless whether the handler succeeded or failed.
-            CompletableFuture.supplyAsync(() -> invoker.invoke(event), executor)
+            return CompletableFuture.supplyAsync(() -> invoker.invoke(event), executor)
                     .thenCompose(stage -> stage != null ? stage : CompletableFuture.<Void>completedFuture(null))
                     .whenComplete((v, err) -> {
                         if (err != null) {
                             logger.errorf(unwrap(err), "Handler '%s' failed to process event <%s>", handlerId,
                                     event);
                         }
-                        cleanupTemporaryToken(credentials, executor);
+                        if (cleanupToken) {
+                            cleanupTemporaryToken(credentials, executor, onTokenRevoked);
+                        }
                     });
         } catch (Exception e) {
             logger.errorf(e, "Failed to dispatch event <%s>", event);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -96,13 +119,17 @@ public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher
      * @param credentials Temporary credentials to delete. If this is null, the
      *                    whole method is no-op.
      * @param executor    Executor used to actually run the deletion
+     * @param onRevoked   Optional callback invoked after successful deletion
      */
-    private void cleanupTemporaryToken(NextcloudUserCredentials credentials, Executor executor) {
+    private void cleanupTemporaryToken(NextcloudUserCredentials credentials, Executor executor, Runnable onRevoked) {
         if (credentials != null && config.cleanupAuthTokens()) {
             final Runnable cleanupJob = () -> {
                 executor.execute(() -> {
                     final boolean result = userService.deleteAppPassword(credentials);
                     if (result) {
+                        if (onRevoked != null) {
+                            onRevoked.run();
+                        }
                         logger.debugf("Deleted ephemeral auth token from webhook event");
                     } else {
                         logger.warnf("Failed to delete ephemeral auth token from webhook event");
