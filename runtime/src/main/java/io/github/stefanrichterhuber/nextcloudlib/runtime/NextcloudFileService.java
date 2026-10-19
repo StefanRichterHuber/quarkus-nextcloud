@@ -52,6 +52,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Order;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Property;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.Query;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.search.FileSelector.FilterRule;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.WebDavPaths;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.activation.DataSource;
 import jakarta.annotation.Nonnull;
@@ -278,7 +279,7 @@ public class NextcloudFileService {
         } else {
             // Replace leading /
             path = path.startsWith("/") ? path.substring(1) : path;
-            path = path.replace(" ", "%20");
+            path = WebDavPaths.encode(path);
             final String target = String.format("%s/remote.php/dav/files/%s/%s", authProvider.getServer(), user, path);
             return target;
         }
@@ -400,7 +401,12 @@ public class NextcloudFileService {
                     .orElseGet(() -> parseFileIdFromVersionPath(path));
             final DataSource ds = new SardineDataSource(this.sardine, path, contentType);
 
-            final String filePath = path.replace(getWebDavFilePath(null) + "/", "");
+            // Paths of files are exposed decoded and relative to the user's root folder.
+            // Other resources (e.g. file versions) keep their absolute URL.
+            final String filesRoot = getWebDavFilePath(null) + "/";
+            final String filePath = path.startsWith(filesRoot)
+                    ? WebDavPaths.decode(path.substring(filesRoot.length()))
+                    : path;
             return new NextcloudFile(fileId, user, filePath, etag, modified, ds, contentLength);
         } else {
             return null;
@@ -616,7 +622,7 @@ public class NextcloudFileService {
         }
         try (InputStream is = this.sardine.get(getWebDavFilePath(file.path()), headers)) {
             byte[] content = is.readAllBytes();
-            ByteArrayDataSource ds = new ByteArrayDataSource(file.path(), contentType, content);
+            ByteArrayDataSource ds = new ByteArrayDataSource(getWebDavFilePath(file.path()), contentType, content);
             return new NextcloudFile(file.fileId(), contentType, file.path(), etag, modDate, ds,
                     file.contentLength());
         }

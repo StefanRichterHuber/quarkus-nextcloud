@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.stefanrichterhuber</groupId>
+        <artifactId>nextcloudlib-parent</artifactId>
+        <version>3.1.5-SNAPSHOT</version>
+    </parent>
+    <artifactId>nextcloudlib-native-tests</artifactId>
+    <name>Nextcloudlib - Native Tests</name>
+    <description>
+        Builds a native executable using the extension and runs risk-based @QuarkusIntegrationTest
+        scenarios against it. Each scenario runs inside the native binary (see the REST resources in
+        src/main), the tests only trigger them over HTTP.
+        The auth mode is fixed at build time, so one binary is built per mode:
+        mvn verify -Pnative-tests -pl native-tests -Dnative.mode=password|exapp
+    </description>
+
+    <properties>
+        <!-- Auth mode of the binary: Quarkus config profile used for the build and the JUnit tag
+        selecting the tests -->
+        <native.mode>password</native.mode>
+        <quarkus.profile>${native.mode}</quarkus.profile>
+        <quarkus.native.enabled>true</quarkus.native.enabled>
+        <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+        <!-- Do not deploy the native tests-->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <gpg.skip>true</gpg.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.stefanrichterhuber</groupId>
+            <artifactId>nextcloudlib</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- No JVM unit tests in this module -->
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <groups>${native.mode}</groups>
+                    <systemPropertyVariables>
+                        <native.image.path>
+                            ${project.build.directory}/${project.build.finalName}-runner</native.image.path>
+                        <!-- Runs the binary and the dev service with the profile used for the build -->
+                        <quarkus.test.integration-test-profile>${native.mode}</quarkus.test.integration-test-profile>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <maven.home>${maven.home}</maven.home>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

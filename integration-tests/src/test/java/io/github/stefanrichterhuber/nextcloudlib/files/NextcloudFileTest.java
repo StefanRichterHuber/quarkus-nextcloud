@@ -434,6 +434,35 @@ public class NextcloudFileTest {
         assertNotNull(result);
     }
 
+    /**
+     * Paths returned by the service are decoded and can be passed to it again
+     */
+    @Test
+    public void specialCharactersInPathTest() throws IOException {
+        final String dir = ROOT_DIR + "/Ordner mit Ä & #";
+        final String rawFileName = UUID.randomUUID().toString() + " a+b ä %20 ?.md";
+        final String filename = dir + "/" + rawFileName;
+        service.createDirectories(dir);
+        service.uploadFile(filename, "text/markdown",
+                new ByteArrayInputStream(TEST_TEXT1.getBytes(StandardCharsets.UTF_8)));
+        try {
+            final NextcloudFile file = service.getFile(filename);
+            assertEquals(filename.substring(1), file.path());
+            assertEquals(rawFileName, file.dataSource().getName());
+
+            final List<NextcloudFile> files = service.listFiles(dir, 1);
+            assertTrue(files.stream().anyMatch(f -> f.path().equals(filename.substring(1))));
+
+            final List<NextcloudFile> byId = service.getFilesByFileIds(List.of(file.fileId()));
+            assertEquals(filename.substring(1), byId.get(0).path());
+
+            // Returned paths can be used for further requests
+            assertEquals(TEST_TEXT1, service.getFile(file.path()).readToString(StandardCharsets.UTF_8));
+        } finally {
+            service.deleteFile(dir);
+        }
+    }
+
     @Test
     public void getFileByIDTest() throws IOException {
         service.createDirectories(ROOT_DIR);

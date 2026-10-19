@@ -219,7 +219,7 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
      * @param calendarId   the internal identifier of the calendar that owns the
      *                     object
      * @param calendarData metadata about the calendar that owns the object
-     * @param shares       the sharing state of the calendar at the time of the
+     * @param shares       the shares of the calendar at the time of the
      *                     event
      * @param objectData   metadata about the calendar object (e.g. an event or
      *                     task)
@@ -228,7 +228,7 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
             @JsonProperty("class") String className,
             Integer calendarId,
             CalendarData calendarData,
-            Shares shares,
+            List<Shares> shares,
             ObjectData objectData) implements Event {
 
         /**
@@ -240,18 +240,18 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
          *                                      collection-level changes
          * @param syncToken                     the WebDAV sync-token for incremental
          *                                      synchronisation
-         * @param supportedCalendarComponentSet the set of supported component types
-         *                                      (e.g. VEVENT, VTODO)
+         * @param supportedCalendarComponentSet the set of supported component types as raw
+         *                                      JSON, as serialized by Nextcloud (e.g. VEVENT, VTODO)
          * @param scheduleCalendarTransp        the scheduling transparency of the
-         *                                      calendar
+         *                                      calendar (raw JSON)
          */
         public record CalendarData(
                 Integer id,
                 String uri,
                 @JsonProperty("{http://calendarserver.org/ns/}getctag") String getctag,
                 @JsonProperty("{http://sabredav.org/ns}sync-token") String syncToken,
-                @JsonProperty("{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set") String supportedCalendarComponentSet,
-                @JsonProperty("{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp") String scheduleCalendarTransp) {
+                @JsonProperty("{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set") JsonNode supportedCalendarComponentSet,
+                @JsonProperty("{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp") JsonNode scheduleCalendarTransp) {
         }
 
         /**
@@ -312,9 +312,9 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
      *                           was moved to
      * @param targetCalendarData metadata about the destination calendar
      * @param sourceCalendarData metadata about the origin calendar
-     * @param sourceShares       the sharing state of the origin calendar at the
+     * @param sourceShares       the shares of the origin calendar at the
      *                           time of the event
-     * @param targetShares       the sharing state of the destination calendar at
+     * @param targetShares       the shares of the destination calendar at
      *                           the time of the event
      */
     public record CalendarMoveEvent(
@@ -323,8 +323,8 @@ public record NextcloudEvent<T extends io.github.stefanrichterhuber.nextcloudlib
             Integer targetCalendarId,
             CalendarData targetCalendarData,
             CalendarData sourceCalendarData,
-            Shares sourceShares,
-            Shares targetShares) implements Event {
+            List<Shares> sourceShares,
+            List<Shares> targetShares) implements Event {
 
     }
 }

@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Objects;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.util.WebDavPaths;
 import jakarta.activation.DataSource;
 
 /**
@@ -30,7 +31,8 @@ public class ByteArrayDataSource implements DataSource {
      * Creates a new ByteArrayDataSource with the given path, content type and
      * content.
      * 
-     * @param path        the path of the file, used to determine the file name
+     * @param path        the encoded WebDAV path of the file, used to determine the
+     *                    file name
      * @param contentType the content type of the file, e.g. "text/plain" or
      *                    "application/pdf"
      * @param content     the content of the file as a byte array
@@ -63,7 +65,7 @@ public class ByteArrayDataSource implements DataSource {
         }
         final String stripped = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
         final String name = stripped.substring(stripped.lastIndexOf('/') + 1);
-        return name.replace("%20", " ");
+        return WebDavPaths.decode(name);
     }
 
     @Override

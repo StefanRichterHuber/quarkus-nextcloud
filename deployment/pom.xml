@@ -48,11 +48,6 @@
             <artifactId>quarkus-smallrye-fault-tolerance-deployment</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.quarkiverse.tika</groupId>
-            <artifactId>quarkus-tika-deployment</artifactId>
-            <version>2.3.2</version>
-        </dependency>
-        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-apache-httpclient-deployment</artifactId>
         </dependency>
