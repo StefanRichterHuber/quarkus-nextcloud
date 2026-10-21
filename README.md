@@ -7,7 +7,7 @@
 
 > **Disclaimer:** This project is an independent community effort and is not affiliated with, maintained, or endorsed by the original [Nextcloud project](https://nextcloud.com/) or [Quarkus project](https://quarkus.io/)
 
-A Quarkus extension for building applications that interact with Nextcloud. Zero-config start of development for  both external applications as well as Nextcloud ExApps with a Nextcloud Dev Service which automatically adapts to the currently required application features.
+A Quarkus extension for building applications that interact with Nextcloud. Zero-config start of development for both external applications and Nextcloud ExApps with a Nextcloud Dev Service which automatically adapts to the currently required application features.
 
 **Main Features:**
 
@@ -23,27 +23,27 @@ A Quarkus extension for building applications that interact with Nextcloud. Zero
 
 ## Table of Contents
 
-- [Quarkus Nextcloud Extension](#quarkus-nextcloud-extension)
-  - [Table of Contents](#table-of-contents)
-  - [How to use](#how-to-use)
-  - [Quick Start](#quick-start)
-  - [Features](#features)
-    - [Global Configuration](#global-configuration)
-    - [Authentication](#authentication)
-      - [OIDC support](#oidc-support)
-    - [CDI Services](#cdi-services)
-    - [Nextcloud Container as Dev Service](#nextcloud-container-as-dev-service)
-    - [Nextcloud Webhook Events](#nextcloud-webhook-events)
-      - [Receiving events](#receiving-events)
-      - [How it works](#how-it-works)
-      - [Configuration](#configuration)
-      - [Prerequisites](#prerequisites)
-    - [Nextcloud AppAPI Support](#nextcloud-appapi-support)
-      - [ExApp Configuration](#exapp-configuration)
-      - [Provided lifecycle endpoints](#provided-lifecycle-endpoints)
-      - [Dev Services](#dev-services)
-    - [Dev UI](#dev-ui)
-  - [Native image](#native-image)
+* [Quarkus Nextcloud Extension](#quarkus-nextcloud-extension)
+  * [Table of Contents](#table-of-contents)
+  * [How to use](#how-to-use)
+  * [Quick Start](#quick-start)
+  * [Features](#features)
+    * [Global Configuration](#global-configuration)
+    * [Authentication](#authentication)
+      * [OIDC support](#oidc-support)
+    * [CDI Services](#cdi-services)
+    * [Nextcloud Container as Dev Service](#nextcloud-container-as-dev-service)
+    * [Nextcloud Webhook Events](#nextcloud-webhook-events)
+      * [Receiving events](#receiving-events)
+      * [How it works](#how-it-works)
+      * [Configuration](#configuration)
+      * [Prerequisites](#prerequisites)
+    * [Nextcloud AppAPI Support](#nextcloud-appapi-support)
+      * [ExApp Configuration](#exapp-configuration)
+      * [Provided lifecycle endpoints](#provided-lifecycle-endpoints)
+      * [Dev Services](#dev-services)
+    * [Dev UI](#dev-ui)
+  * [Native image](#native-image)
 
 ---
 
@@ -124,21 +124,21 @@ Nextcloud server URL and user credentials to all other services. A simple defaul
 | `nextcloud.admin-user` | Username for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.user` |
 | `nextcloud.admin-password` | Password for an admin account. Optional, only required if admin access is necessary, falls back to `nextcloud.password` |
 | `nextcloud.token` | OIDC token to use if `nextcloud.oidc.enabled-for-users` is enabled |
-| `nextcloud.admin-token` | OIDC token for admin acccess to use if `nextcloud.oidc.enabled-for-admins` is enabled |
+| `nextcloud.admin-token` | OIDC token for admin access to use if `nextcloud.oidc.enabled-for-admins` is enabled |
 
 #### OIDC support
 
 When the Nextcloud app `user_oidc` is installed and `oidc_provider_bearer_validation` is activated (`occ config:system:set user_oidc oidc_provider_bearer_validation --value=true --type=boolean`), Nextcloud accepts bearer token for API access.
 This is especially useful when the java application and Nextcloud instance accept a common OIDC provider, so that access tokens issued for the app a directly usable for Nextcloud access without provisioning a dedicated app password.
-On the other hand, access tokens have relativly short lifetime, so long-term background jobs still require a dedicated app passwords.
+On the other hand, access tokens have relatively short lifetime, so long-term background jobs still require a dedicated app passwords.
 
 If `nextcloud.oidc.enabled-for-users` or `nextcloud.oidc.enabled-for-admins` is enabled, the default implementations of `io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider` check the current `io.quarkus.security.identity.SecurityIdentity` if some user is logged-in and a valid `io.quarkus.security.credential.TokenCredential` is present and then pass this token down to access Nextcloud. If OIDC access is enabled but no valid `io.quarkus.security.credential.TokenCredential` is found, there is a fall-back to the config properties `nextcloud.token` and `nextcloud.admin-token`.
 
 Nextcloud dev services supports OIDC (enabled by property `nextcloud.dev-services.enable-oidc`):
 
-* Installs Nextcloud OIDC Identity Provider (app `oidc`) and configures a client (IDP server url, client id and secret published as config properties `quarkus.oidc.auth-server-url`, `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ). Set token expiry to 3600s (1h) to have plenty of time for automated tests
-* Installs Nextcloud OIDC App (app `user_oidc`) for authentication and configure the client created before. Enable config items `user_oidc.oidc_provider_bearer_validation` and `user_oidc.httpclient.allowselfsigned` to allow API access with bearer tokens. 
-* Calls the Nextcloud OIDC Identity Provider and obtains an access token and publish it as config properties `nextcloud.token` and `nextcloud.admin-token`
+* Installs Nextcloud OIDC Identity Provider (app `oidc`) and configures a client (IDP server URL, client ID and secret published as config properties `quarkus.oidc.auth-server-url`, `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret`). Set token expiry to 3600s (1h) to have plenty of time for automated tests
+* Installs Nextcloud OIDC App (app `user_oidc`) for authentication and configure the client created before. Enable config items `user_oidc.oidc_provider_bearer_validation` and `user_oidc.httpclient.allowselfsigned` to allow API access with bearer tokens.
+* Calls the Nextcloud OIDC Identity Provider and obtains an access token and publishes it as config properties `nextcloud.token` and `nextcloud.admin-token`
 
 ### CDI Services
 
@@ -170,9 +170,9 @@ If the property `nextcloud.file-lock-enabled` is set to `true`, the required app
 | `nextcloud.dev-services.log-level` | `1` | Nextcloud log level (0 Debug … 4 Fatal) |
 | `nextcloud.dev-services.apps` | *(empty)* | Comma-separated list of Nextcloud apps to install |
 | `nextcloud.dev-services.enable-ex-app` | `false` | Install AppAPI, register a local daemon, and register this app as an ExApp |
-| `nextcloud.dev-services.enable-webhook-worker` | `true` | Run the `WebhookCall` background-job worker so webhook events are dispatched without waiting for a cron trigger |
-| `nextcloud.dev-services.enable-oidc` | `false` | Enable OIDC support. Installs nextcloud apps `oidc` and `user_oidc`, configures a client (client id published as `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret` ) and requests some access tokens (published as config properties `nextcloud.token` and `nextcloud.admin-token`) |
-| `nextcloud.dev-services.oidc-redirect-urls` | `http://localhost:${quarkus.http.test-port:quarkus.http.port}/*` |  List of additional urls to register as valid redirect urls for the OIDC Identity provider configuration. |
+| `nextcloud.dev-services.enable-webhook-worker` | `true` | Run the `WebhookCall` background-job worker, so webhook events are dispatched without waiting for a cron trigger |
+| `nextcloud.dev-services.enable-oidc` | `false` | Enable OIDC support. Installs Nextcloud apps `oidc` and `user_oidc`, configures a client (client ID published as `quarkus.oidc.client-id` and `quarkus.oidc.credentials.secret`) and requests some access tokens (published as config properties `nextcloud.token` and `nextcloud.admin-token`) |
+| `nextcloud.dev-services.oidc-redirect-urls` | `http://localhost:${quarkus.http.test-port:quarkus.http.port}/*` | List of additional URLs to register as valid redirect URLs for the OIDC Identity provider configuration. |
 
 The dev service injects the following properties into the running application:
 
@@ -311,7 +311,7 @@ In dev mode (`quarkus:dev`) the Quarkus Dev UI (`/q/dev-ui`) has a **Nextcloud**
 | Page | Description |
 | --- | --- |
 | Open Nextcloud | Opens the connected Nextcloud instance in a new browser tab |
-| Instance | URL, user, password (with copy buttons), auth mode, Nextcloud version, installed apps and container id. Log in to the dev service instance with these credentials, e.g. to test your ExApp or trigger events |
+| Instance | URL, user, password (with copy buttons), auth mode, Nextcloud version, installed apps and container ID. Log in to the dev service instance with these credentials, e.g. to test your ExApp or trigger events |
 | Events | Live list of the webhook events received, with status (`OK`, `FAILED` incl. stack trace, `NO_HANDLER`, …), handler, triggering user and duration. Events can be replayed as received or after editing their JSON (*Edit & Replay*) |
 | Handlers | All `@OnNextcloudEvent` methods with their events, filters and the webhooks registered for them in Nextcloud. *Re-register webhooks* deletes and re-creates them |
 | Tools | *Run webhook worker now* (sends queued webhook events immediately) and an `occ` console for the dev service container |
@@ -374,4 +374,3 @@ mvn install -DskipTests
 mvn verify -Pnative-tests -pl native-tests -Dnative.mode=password
 mvn verify -Pnative-tests -pl native-tests -Dnative.mode=exapp
 ```
-

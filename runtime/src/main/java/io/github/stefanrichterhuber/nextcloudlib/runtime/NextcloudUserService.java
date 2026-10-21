@@ -21,7 +21,6 @@ import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.SecurityContext;
 
@@ -314,7 +313,8 @@ public class NextcloudUserService {
      *      "https://docs.nextcloud.com/server/latest/admin_manual/configuration_user/instruction_set_for_users.html">Nextcloud
      *      Admin Manual: Instruction Set for Users</a>
      */
-    public boolean createUser(@FormParam("userid") String userId,
+    public boolean createUser(
+            String userId,
             String password,
             String displayName,
             String email,
