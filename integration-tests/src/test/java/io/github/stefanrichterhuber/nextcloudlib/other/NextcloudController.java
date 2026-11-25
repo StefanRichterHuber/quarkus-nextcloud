@@ -16,10 +16,10 @@ import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DatabindException;
+import tools.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.model.Frame;
@@ -265,8 +265,8 @@ public class NextcloudController {
      * 
      * @param user Name of the user
      * @return List of auth tokens
-     * @throws JsonMappingException
-     * @throws JsonProcessingException
+     * @throws DatabindException
+     * @throws JacksonException
      */
     public CompletableFuture<List<UserAuthToken>> listAuthTokens(String user) {
         return occ("user:auth-tokens:list", user, "--output", "json").thenApply(r -> {
@@ -282,7 +282,7 @@ public class NextcloudController {
                         });
 
                 return tokens;
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 throw new RuntimeException(e);
             }
         });

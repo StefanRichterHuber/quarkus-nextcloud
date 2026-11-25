@@ -7,6 +7,7 @@ import static io.github.stefanrichterhuber.nextcloudlib.nativetests.TestData.str
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.function.Supplier;
 
 import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
@@ -68,12 +69,29 @@ public class DiffUserScenarios {
     @Path("/user")
     public void user() throws Exception {
         final String user = Check.notNull(authProvider.getUser(), "Configured user");
-        final NextcloudUser info = Check.notNull(userService.getCurrentUserInfo(), "Current user info");
+        final NextcloudUser info = Check.notNull(retryOnNull(userService::getCurrentUserInfo), "Current user info");
         Check.equal(user, info.id(), "Id of current user");
-        Check.equal(user, userService.getUserInfo(user).id(), "Id of user info");
+        Check.equal(user, Check.notNull(retryOnNull(() -> userService.getUserInfo(user)), "User info").id(),
+                "Id of user info");
 
         final SecurityIdentity identity = userService.getSecurityIdentity(info, authProvider.getCredentials());
         Check.equal(user, identity.getPrincipal().getName(), "Principal name");
         Check.isTrue(identity.hasRole("admin"), "Dev service user is not in group admin");
+    }
+
+    /**
+     * The SQLite based dev service occasionally fails OCS requests under load
+     * ({@code statuscode} 996, "database is locked"), which the user service
+     * reports as {@code null}. Such lookups are retried, like the 503s in
+     * {@code Scenarios}.
+     */
+    private static <T> T retryOnNull(Supplier<T> lookup) throws InterruptedException {
+        for (int attempt = 1;; attempt++) {
+            final T result = lookup.get();
+            if (result != null || attempt == 3) {
+                return result;
+            }
+            Thread.sleep(2000);
+        }
     }
 }

@@ -8,8 +8,8 @@ import java.util.concurrent.CompletionException;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.RestResponse.StatusCode;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudEventTracker.CredentialSource;

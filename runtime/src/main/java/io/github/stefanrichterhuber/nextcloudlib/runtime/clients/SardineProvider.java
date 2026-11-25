@@ -7,10 +7,11 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvi
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.impl.CustomHeaderSardineImpl;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
-import io.quarkus.arc.DefaultBean;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.inject.Produces;
+import jakarta.enterprise.inject.Reserve;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Produces;
 
 public class SardineProvider {
 
@@ -26,7 +27,8 @@ public class SardineProvider {
 
     @Produces
     @RequestScoped
-    @DefaultBean
+    @Reserve
+    @Priority(0)
     public Sardine getSardineInstance() {
         return buildSardine(auth);
     }
@@ -34,7 +36,8 @@ public class SardineProvider {
     @Produces
     @RequestScoped
     @NextcloudAdmin
-    @DefaultBean
+    @Reserve
+    @Priority(0)
     public Sardine getSardineAdminInstance() {
         return buildSardine(adminAuth);
     }

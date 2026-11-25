@@ -21,7 +21,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCre
  * <p>
  * The default implementation is
  * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.DefaultNextcloudEventDispatcher}.
- * Applications may provide an alternative {@code @DefaultBean} to override it.
+ * Applications may provide an alternative {@code @Reserve} bean or a regular bean to override it.
  */
 public interface NextcloudEventDispatcher {
     /**

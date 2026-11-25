@@ -1,13 +1,15 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.devui;
 
-import io.quarkus.arc.DefaultBean;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Reserve;
 
 /**
  * Default {@link NextcloudExAppStateTracker} outside of local dev mode: tracks
  * nothing.
  */
-@DefaultBean
+@Reserve
+@Priority(0)
 @ApplicationScoped
 public class NoopNextcloudExAppStateTracker implements NextcloudExAppStateTracker {
 

@@ -2,7 +2,7 @@
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.stefanrichterhuber/nextcloudlib)](https://central.sonatype.com/artifact/io.github.stefanrichterhuber/nextcloudlib)
 [![Java 21+](https://img.shields.io/badge/Java-21+-brightgreen)](https://adoptium.net/)
-[![Quarkus 3.x](https://img.shields.io/badge/Quarkus-3.x-4695EB?logo=quarkus&logoColor=white)](https://quarkus.io/)
+[![Quarkus 4.x](https://img.shields.io/badge/Quarkus-4.x-4695EB?logo=quarkus&logoColor=white)](https://quarkus.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Disclaimer:** This project is an independent community effort and is not affiliated with, maintained, or endorsed by the original [Nextcloud project](https://nextcloud.com/) or [Quarkus project](https://quarkus.io/)

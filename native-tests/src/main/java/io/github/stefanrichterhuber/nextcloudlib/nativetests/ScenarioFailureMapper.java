@@ -22,11 +22,17 @@ public class ScenarioFailureMapper implements ExceptionMapper<Throwable> {
 
     @Override
     public Response toResponse(Throwable exception) {
-        if (exception instanceof WebApplicationException wae) {
-            return wae.getResponse();
-        }
         LOG.error("Scenario failed", exception);
         final StringWriter sw = new StringWriter();
+        if (exception instanceof WebApplicationException wae) {
+            // The response of a WebApplicationException thrown by a REST client must not
+            // be returned from a server endpoint (rejected since Quarkus 4), so only its
+            // status is passed on. The "status code" prefix lets the test retry 503s.
+            final int status = wae.getResponse().getStatus();
+            sw.append("status code: ").append(String.valueOf(status)).append('\n');
+            exception.printStackTrace(new PrintWriter(sw));
+            return Response.status(status).type(MediaType.TEXT_PLAIN).entity(sw.toString()).build();
+        }
         exception.printStackTrace(new PrintWriter(sw));
         return Response.serverError().type(MediaType.TEXT_PLAIN).entity(sw.toString()).build();
     }

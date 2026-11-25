@@ -3,7 +3,7 @@ package io.github.stefanrichterhuber.nextcloudlib.runtime.models;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 

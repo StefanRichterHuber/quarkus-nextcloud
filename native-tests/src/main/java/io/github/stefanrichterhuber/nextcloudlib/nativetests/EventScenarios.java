@@ -12,7 +12,7 @@ import java.util.function.Predicate;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import biweekly.ICalendar;
 import biweekly.component.VEvent;

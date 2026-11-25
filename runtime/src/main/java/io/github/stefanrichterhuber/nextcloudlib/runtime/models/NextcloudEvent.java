@@ -8,7 +8,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.CalendarObjectEvent.CalendarData;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.CalendarObjectEvent.Shares;

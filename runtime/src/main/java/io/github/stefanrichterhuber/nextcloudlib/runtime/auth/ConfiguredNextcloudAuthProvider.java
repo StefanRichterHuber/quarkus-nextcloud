@@ -8,11 +8,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudOIDCConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
-import io.quarkus.arc.DefaultBean;
 import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.inject.Reserve;
 import jakarta.inject.Inject;
 
 /**
@@ -33,7 +33,7 @@ import jakarta.inject.Inject;
  * SecurityIdentity of the current request and the password is taken from the
  * OIDC token of the current request.
  */
-@DefaultBean
+@Reserve
 @RequestScoped
 @Priority(NextcloudAuthProvider.STANDARD_PRIORITY)
 public class ConfiguredNextcloudAuthProvider implements NextcloudAuthProvider {

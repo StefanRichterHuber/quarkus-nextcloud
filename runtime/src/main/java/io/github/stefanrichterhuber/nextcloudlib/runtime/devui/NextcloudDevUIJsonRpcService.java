@@ -21,10 +21,10 @@ import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.devui.NextcloudDevEventStore.Entry;
@@ -522,7 +522,7 @@ public class NextcloudDevUIJsonRpcService {
             if (response.statusCode() == 200) {
                 final JsonNode status = jsonMapper.readTree(response.body());
                 result.put("reachable", true);
-                result.put("version", status.path("versionstring").asText(null));
+                result.put("version", status.path("versionstring").asString(null));
                 result.put("installed", status.path("installed").asBoolean(false));
                 result.put("maintenance", status.path("maintenance").asBoolean(false));
             } else {
@@ -602,10 +602,10 @@ public class NextcloudDevUIJsonRpcService {
             if (authentication.path(key) instanceof ObjectNode tokenHolder && tokenHolder.hasNonNull("token")) {
                 if (original == null) {
                     tokenHolder.put("token", value);
-                } else if (value.equals(tokenHolder.path("token").asText())) {
+                } else if (value.equals(tokenHolder.path("token").asString())) {
                     final JsonNode originalToken = original.path("authentication").path(key).path("token");
-                    if (originalToken.isTextual()) {
-                        tokenHolder.put("token", originalToken.asText());
+                    if (originalToken.isString()) {
+                        tokenHolder.put("token", originalToken.asString());
                     }
                 }
             }

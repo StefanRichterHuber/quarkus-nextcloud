@@ -1,7 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.events;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -9,9 +8,9 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Interpreter for the filters used for 'webhook_listener' events
@@ -48,7 +47,7 @@ public final class PHPMongoQueryParser {
             return json -> {
                 try {
                     return test(MAPPER.readTree(json));
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     throw new IllegalArgumentException("String not valid json", e);
                 }
             };
@@ -84,7 +83,7 @@ public final class PHPMongoQueryParser {
     public static CompiledFilter compile(String filterJson) {
         try {
             return compile(MAPPER.readTree(filterJson));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new FilterSyntaxException("filter is not valid JSON: " + e.getOriginalMessage(), e);
         }
     }
@@ -190,9 +189,8 @@ public final class PHPMongoQueryParser {
         }
         boolean sawOperator = false;
         boolean sawPlain = false;
-        Iterator<String> names = spec.fieldNames();
-        while (names.hasNext()) {
-            if (names.next().startsWith("$")) {
+        for (String name : spec.propertyNames()) {
+            if (name.startsWith("$")) {
                 sawOperator = true;
             } else {
                 sawPlain = true;
@@ -378,7 +376,7 @@ public final class PHPMongoQueryParser {
     }
 
     private static CompiledFilter regexPredicate(Pattern pattern) {
-        return actual -> actual.isTextual() && pattern.matcher(actual.textValue()).find();
+        return actual -> actual.isString() && pattern.matcher(actual.stringValue()).find();
     }
 
     private static CompiledFilter comparison(JsonNode expected,
@@ -404,8 +402,8 @@ public final class PHPMongoQueryParser {
         if (a.isNumber() && b.isNumber()) {
             return a.decimalValue().compareTo(b.decimalValue());
         }
-        if (a.isTextual() && b.isTextual()) {
-            return a.textValue().compareTo(b.textValue());
+        if (a.isString() && b.isString()) {
+            return a.stringValue().compareTo(b.stringValue());
         }
         if (a.isBoolean() && b.isBoolean()) {
             return Boolean.compare(a.booleanValue(), b.booleanValue());
@@ -472,10 +470,10 @@ public final class PHPMongoQueryParser {
     private static Pattern requireRegex(JsonNode node) {
         Pattern p = asRegexLiteral(node);
         if (p == null) {
-            if (!node.isTextual()) {
+            if (!node.isString()) {
                 throw new FilterSyntaxException("$regex expects a string");
             }
-            return compilePattern(node.textValue(), 0); // bare pattern, no delimiters
+            return compilePattern(node.stringValue(), 0); // bare pattern, no delimiters
         }
         return p;
     }
@@ -485,10 +483,10 @@ public final class PHPMongoQueryParser {
      * Returns {@code null} when the value is not a regex literal.
      */
     private static Pattern asRegexLiteral(JsonNode node) {
-        if (!node.isTextual()) {
+        if (!node.isString()) {
             return null;
         }
-        String raw = node.textValue();
+        String raw = node.stringValue();
         if (raw.length() < 2 || raw.charAt(0) != '/') {
             return null;
         }

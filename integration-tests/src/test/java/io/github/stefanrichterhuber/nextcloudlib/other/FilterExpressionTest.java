@@ -9,8 +9,8 @@ import java.util.function.Predicate;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.profiles.AppPasswordTestProfile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.FilterExpression;
@@ -54,7 +54,7 @@ public class FilterExpressionTest {
     }
 
     @Test
-    public void testCompiledFilterInjection() throws JsonProcessingException {
+    public void testCompiledFilterInjection() throws JacksonException {
         assertNotNull(filter);
 
         TestObject o1 = new TestObject(new TestObject.User("Admin", adminUid), "001", 1000);

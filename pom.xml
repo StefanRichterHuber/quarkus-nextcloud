@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.stefanrichterhuber</groupId>
     <artifactId>nextcloudlib-parent</artifactId>
-    <version>3.2.1-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Nextcloudlib - Parent</name>
     <description>A Quarkus extension to access Nextcloud</description>
@@ -23,8 +23,8 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <quarkus.version>3.40.1.2</quarkus.version>
-        <tika.version>3.4.0</tika.version>
+        <quarkus.version>4.0.0</quarkus.version>
+        <tika.version>4.2.0</tika.version>
         <surefire-plugin.version>3.6.1</surefire-plugin.version>
     </properties>
 

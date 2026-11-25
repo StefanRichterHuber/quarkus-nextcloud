@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import io.quarkus.devui.tests.DevUIJsonRPCTest;
 import io.quarkus.test.QuarkusDevModeTest;
@@ -61,18 +61,18 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
     @Order(1)
     public void instanceToolsAndHandlers() throws Exception {
         final JsonNode info = executeJsonRPCMethod("getInstanceInfo");
-        Assertions.assertEquals("LOCAL_DEV_SERVICE", info.get("mode").asText());
+        Assertions.assertEquals("LOCAL_DEV_SERVICE", info.get("mode").asString());
         Assertions.assertTrue(info.get("localDevService").asBoolean());
-        Assertions.assertFalse(info.get("password").asText().isEmpty());
-        Assertions.assertTrue(info.get("containerId").isTextual());
-        Assertions.assertEquals("Local dev service", executeJsonRPCMethod("getModeText").asText());
+        Assertions.assertFalse(info.get("password").asString().isEmpty());
+        Assertions.assertTrue(info.get("containerId").isString());
+        Assertions.assertEquals("Local dev service", executeJsonRPCMethod("getModeText").asString());
         Assertions.assertTrue(executeJsonRPCMethod("getContainerStatus").get("available").asBoolean());
 
         // occ console
         final JsonNode result = executeJsonRPCMethod("runOcc", Map.of("command", "occ app:list --output=json"));
         Assertions.assertTrue(result.get("available").asBoolean());
         Assertions.assertEquals(0, result.get("exitCode").asInt());
-        Assertions.assertTrue(result.get("stdout").asText().contains("webhook_listeners"));
+        Assertions.assertTrue(result.get("stdout").asString().contains("webhook_listeners"));
 
         // Handlers and their registered webhooks
         final JsonNode handlers = executeJsonRPCMethod("getHandlers");
@@ -90,50 +90,50 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
         upload("devui-ok.txt");
         upload("devui-fail.txt");
 
-        final JsonNode ok = awaitEvent(e -> e.get("json").asText().contains("devui-ok.txt")
-                && !e.get("status").asText().equals("PENDING"));
-        Assertions.assertEquals("OK", ok.get("status").asText());
-        Assertions.assertEquals("ORIGINAL", ok.get("credentialSource").asText());
+        final JsonNode ok = awaitEvent(e -> e.get("json").asString().contains("devui-ok.txt")
+                && !e.get("status").asString().equals("PENDING"));
+        Assertions.assertEquals("OK", ok.get("status").asString());
+        Assertions.assertEquals("ORIGINAL", ok.get("credentialSource").asString());
         // Ephemeral tokens are masked
-        Assertions.assertTrue(ok.get("json").asText().contains("\"token\" : \"********\""),
-                "token must be masked: " + ok.get("json").asText());
+        Assertions.assertTrue(ok.get("json").asString().contains("\"token\" : \"********\""),
+                "token must be masked: " + ok.get("json").asString());
 
-        final JsonNode failed = awaitEvent(e -> e.get("json").asText().contains("devui-fail.txt")
-                && !e.get("status").asText().equals("PENDING"));
-        Assertions.assertEquals("FAILED", failed.get("status").asText());
-        Assertions.assertTrue(failed.get("error").asText().contains("Handler failure"));
+        final JsonNode failed = awaitEvent(e -> e.get("json").asString().contains("devui-fail.txt")
+                && !e.get("status").asString().equals("PENDING"));
+        Assertions.assertEquals("FAILED", failed.get("status").asString());
+        Assertions.assertTrue(failed.get("error").asString().contains("Handler failure"));
 
         // Token was deleted after processing (cleanup-auth-tokens=true) -> temporary
         // app password of the original user (admin, password from the config), deleted
         // again after the replay
-        final String okId = ok.get("id").asText();
-        awaitEvent(e -> e.get("id").asText().equals(okId) && e.get("tokenRevoked").asBoolean());
+        final String okId = ok.get("id").asString();
+        awaitEvent(e -> e.get("id").asString().equals(okId) && e.get("tokenRevoked").asBoolean());
         final JsonNode replay = executeJsonRPCMethod("replay",
                 Map.of("id", okId, "editedJson", "", "confirmed", false, "password", ""));
         Assertions.assertTrue(replay.get("success").asBoolean(), replay.toString());
-        Assertions.assertEquals("TEMPORARY", replay.get("credentialSource").asText());
-        final String replayId = replay.get("id").asText();
-        final JsonNode replayed = awaitEvent(e -> e.get("id").asText().equals(replayId)
-                && !e.get("status").asText().equals("PENDING"));
-        Assertions.assertEquals("OK", replayed.get("status").asText());
-        Assertions.assertEquals(okId, replayed.get("replayOf").asText());
-        Assertions.assertEquals("admin", replayed.get("triggerUser").asText());
-        awaitEvent(e -> e.get("id").asText().equals(replayId) && e.get("tokenRevoked").asBoolean());
+        Assertions.assertEquals("TEMPORARY", replay.get("credentialSource").asString());
+        final String replayId = replay.get("id").asString();
+        final JsonNode replayed = awaitEvent(e -> e.get("id").asString().equals(replayId)
+                && !e.get("status").asString().equals("PENDING"));
+        Assertions.assertEquals("OK", replayed.get("status").asString());
+        Assertions.assertEquals(okId, replayed.get("replayOf").asString());
+        Assertions.assertEquals("admin", replayed.get("triggerUser").asString());
+        awaitEvent(e -> e.get("id").asString().equals(replayId) && e.get("tokenRevoked").asBoolean());
         assertNoReplayAppPasswordLeft("admin");
 
         // Event of a user without configured password: the password must be entered
         createUser(OTHER_USER, OTHER_PASSWORD);
         upload(OTHER_USER, OTHER_PASSWORD, "devui-other.txt");
-        final JsonNode other = awaitEvent(e -> e.get("json").asText().contains("devui-other.txt")
+        final JsonNode other = awaitEvent(e -> e.get("json").asString().contains("devui-other.txt")
                 && e.get("tokenRevoked").asBoolean());
-        Assertions.assertEquals(OTHER_USER, other.get("triggerUser").asText());
-        final String otherId = other.get("id").asText();
+        Assertions.assertEquals(OTHER_USER, other.get("triggerUser").asString());
+        final String otherId = other.get("id").asString();
 
         final JsonNode noPassword = executeJsonRPCMethod("replay",
                 Map.of("id", otherId, "editedJson", "", "confirmed", false, "password", ""));
         Assertions.assertFalse(noPassword.get("success").asBoolean());
         Assertions.assertTrue(noPassword.get("passwordRequired").asBoolean(), noPassword.toString());
-        Assertions.assertEquals(OTHER_USER, noPassword.get("user").asText());
+        Assertions.assertEquals(OTHER_USER, noPassword.get("user").asString());
 
         final JsonNode wrongPassword = executeJsonRPCMethod("replay",
                 Map.of("id", otherId, "editedJson", "", "confirmed", false, "password", "wrong-password"));
@@ -143,12 +143,12 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
         final JsonNode withPassword = executeJsonRPCMethod("replay",
                 Map.of("id", otherId, "editedJson", "", "confirmed", false, "password", OTHER_PASSWORD));
         Assertions.assertTrue(withPassword.get("success").asBoolean(), withPassword.toString());
-        Assertions.assertEquals("TEMPORARY", withPassword.get("credentialSource").asText());
-        final String otherReplayId = withPassword.get("id").asText();
-        final JsonNode otherReplayed = awaitEvent(e -> e.get("id").asText().equals(otherReplayId)
-                && !e.get("status").asText().equals("PENDING") && e.get("tokenRevoked").asBoolean());
-        Assertions.assertEquals("OK", otherReplayed.get("status").asText());
-        Assertions.assertEquals(OTHER_USER, otherReplayed.get("triggerUser").asText());
+        Assertions.assertEquals("TEMPORARY", withPassword.get("credentialSource").asString());
+        final String otherReplayId = withPassword.get("id").asString();
+        final JsonNode otherReplayed = awaitEvent(e -> e.get("id").asString().equals(otherReplayId)
+                && !e.get("status").asString().equals("PENDING") && e.get("tokenRevoked").asBoolean());
+        Assertions.assertEquals("OK", otherReplayed.get("status").asString());
+        Assertions.assertEquals(OTHER_USER, otherReplayed.get("triggerUser").asString());
         assertNoReplayAppPasswordLeft(OTHER_USER);
 
         // The entered password is kept for further replays
@@ -157,14 +157,14 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
         Assertions.assertTrue(remembered.get("success").asBoolean(), remembered.toString());
 
         // Edit & replay: the edited event makes the handler fail
-        final String edited = ok.get("json").asText().replace("devui-ok.txt", "devui-fail-edited.txt");
+        final String edited = ok.get("json").asString().replace("devui-ok.txt", "devui-fail-edited.txt");
         final JsonNode editedReplay = executeJsonRPCMethod("replay",
                 Map.of("id", okId, "editedJson", edited, "confirmed", false, "password", ""));
-        final String editedId = editedReplay.get("id").asText();
-        final JsonNode editedEvent = awaitEvent(e -> e.get("id").asText().equals(editedId)
-                && !e.get("status").asText().equals("PENDING"));
-        Assertions.assertEquals("FAILED", editedEvent.get("status").asText());
-        Assertions.assertTrue(editedEvent.get("error").asText().contains("devui-fail-edited.txt"));
+        final String editedId = editedReplay.get("id").asString();
+        final JsonNode editedEvent = awaitEvent(e -> e.get("id").asString().equals(editedId)
+                && !e.get("status").asString().equals("PENDING"));
+        Assertions.assertEquals("FAILED", editedEvent.get("status").asString());
+        Assertions.assertTrue(editedEvent.get("error").asString().contains("devui-fail-edited.txt"));
 
         // Invalid JSON is rejected
         final JsonNode invalid = executeJsonRPCMethod("replay",
@@ -183,7 +183,7 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
 
     private void upload(String name) throws Exception {
         final JsonNode info = executeJsonRPCMethod("getInstanceInfo");
-        upload(info.get("user").asText(), info.get("password").asText(), name);
+        upload(info.get("user").asString(), info.get("password").asString(), name);
     }
 
     private void upload(String user, String password, String name) throws Exception {
@@ -204,7 +204,7 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
         final String body = "userid=" + URLEncoder.encode(user, StandardCharsets.UTF_8) + "&password="
                 + URLEncoder.encode(password, StandardCharsets.UTF_8);
         final HttpRequest request = HttpRequest.newBuilder(URI.create(nextcloudUrl() + "/ocs/v1.php/cloud/users"))
-                .header("Authorization", basicAuth(info.get("user").asText(), info.get("password").asText()))
+                .header("Authorization", basicAuth(info.get("user").asString(), info.get("password").asString()))
                 .header("OCS-APIRequest", "true")
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -218,12 +218,12 @@ public class NextcloudDevUILocalDevServiceTest extends DevUIJsonRPCTest {
         final JsonNode tokens = executeJsonRPCMethod("runOcc",
                 Map.of("command", "user:auth-tokens:list " + user + " --output=json"));
         Assertions.assertEquals(0, tokens.get("exitCode").asInt(), tokens.toString());
-        Assertions.assertFalse(tokens.get("stdout").asText().contains("Quarkus Dev UI event replay"),
+        Assertions.assertFalse(tokens.get("stdout").asString().contains("Quarkus Dev UI event replay"),
                 tokens.toString());
     }
 
     private String nextcloudUrl() throws Exception {
-        return executeJsonRPCMethod("getInstanceInfo").get("url").asText();
+        return executeJsonRPCMethod("getInstanceInfo").get("url").asString();
     }
 
     private static String basicAuth(String user, String password) {

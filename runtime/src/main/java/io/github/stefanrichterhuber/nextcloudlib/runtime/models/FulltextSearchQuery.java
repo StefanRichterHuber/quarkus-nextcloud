@@ -1,7 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudlib.runtime.models;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
@@ -73,7 +73,7 @@ public record FulltextSearchQuery(String providers, String search, int page, int
         try {
             final String request = om.writeValueAsString(this);
             return request;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException(e);
         }
     }

@@ -12,8 +12,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.tika.parser.txt.CharsetDetector;
-import org.apache.tika.parser.txt.CharsetMatch;
+import org.apache.tika.detect.icu4j.CharsetDetector;
+import org.apache.tika.detect.icu4j.CharsetMatch;
 import org.jboss.logging.Logger;
 
 import com.github.difflib.DiffUtils;

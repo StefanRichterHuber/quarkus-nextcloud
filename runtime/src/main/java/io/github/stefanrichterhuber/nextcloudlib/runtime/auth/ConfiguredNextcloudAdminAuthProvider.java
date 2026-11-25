@@ -8,11 +8,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.clients.NextcloudOIDCConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
-import io.quarkus.arc.DefaultBean;
 import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.inject.Reserve;
 import jakarta.inject.Inject;
 
 /**
@@ -29,7 +29,7 @@ import jakarta.inject.Inject;
  * <li>nextcloud.password: Password for the nextcloud installation</li>
  * </ul>
  */
-@DefaultBean
+@Reserve
 @RequestScoped
 @NextcloudAdmin
 @Priority(NextcloudAuthProvider.STANDARD_PRIORITY)

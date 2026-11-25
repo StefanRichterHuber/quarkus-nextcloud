@@ -15,8 +15,9 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.E
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.RequestScopedExecutor;
-import io.quarkus.arc.DefaultBean;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Reserve;
 import jakarta.inject.Inject;
 
 /**
@@ -27,7 +28,8 @@ import jakarta.inject.Inject;
  * alternative implementation without needing to {@code @Specializes} this one.
  */
 @ApplicationScoped
-@DefaultBean
+@Reserve
+@Priority(0)
 public class DefaultNextcloudEventDispatcher implements NextcloudEventDispatcher {
 
     @Inject

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import io.quarkus.devui.tests.DevUIJsonRPCTest;
 import io.quarkus.test.QuarkusDevModeTest;
@@ -37,15 +37,15 @@ public class NextcloudDevUIExternalInstanceTest extends DevUIJsonRPCTest {
     @Test
     public void instanceInfoHidesExternalCredentials() throws Exception {
         final JsonNode info = executeJsonRPCMethod("getInstanceInfo");
-        Assertions.assertEquals("UNAVAILABLE", info.get("mode").asText());
+        Assertions.assertEquals("UNAVAILABLE", info.get("mode").asString());
         Assertions.assertFalse(info.get("localDevService").asBoolean());
-        Assertions.assertEquals("http://localhost:1", info.get("url").asText());
-        Assertions.assertEquals("external-user", info.get("user").asText());
+        Assertions.assertEquals("http://localhost:1", info.get("url").asString());
+        Assertions.assertEquals("external-user", info.get("user").asString());
         // The Dev UI JSON mapper omits null values
         Assertions.assertTrue(info.path("password").isMissingNode() || info.get("password").isNull());
         Assertions.assertTrue(info.path("adminPassword").isMissingNode() || info.get("adminPassword").isNull());
         Assertions.assertTrue(info.get("passwordConfigured").asBoolean());
-        Assertions.assertEquals("Not reachable", executeJsonRPCMethod("getModeText").asText());
+        Assertions.assertEquals("Not reachable", executeJsonRPCMethod("getModeText").asString());
     }
 
     @Test

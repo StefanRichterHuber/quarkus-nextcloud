@@ -8,9 +8,9 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAdmin;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappAppConfig;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
-import io.quarkus.arc.DefaultBean;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.inject.Reserve;
 import jakarta.inject.Inject;
 
 /**
@@ -22,7 +22,7 @@ import jakarta.inject.Inject;
  * and
  * is injected wherever an admin-scoped provider is required in ExApp mode.
  */
-@DefaultBean
+@Reserve
 @RequestScoped
 @Priority(ExAppNextcloudAuthProvider.PRIORITY)
 @NextcloudAdmin

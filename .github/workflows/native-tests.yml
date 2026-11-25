@@ -49,5 +49,6 @@ jobs:
           name: native-tests-${{ matrix.mode }}
           path: |
             native-tests/target/failsafe-reports/
-            native-tests/target/quarkus.log
+            # Since Quarkus 4 each test run logs into its own target/test-<random>/ directory
+            native-tests/target/test-*/quarkus.log
           if-no-files-found: ignore

@@ -27,8 +27,8 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExappConfig;
 import io.quarkus.deployment.IsProduction;
@@ -512,7 +512,7 @@ public class NextcloudDevServicesResultBuildItem {
 
             final ObjectMapper om = new ObjectMapper();
             final JsonNode tokenJson = om.readTree(tokenResponse.body());
-            final String accessToken = tokenJson.path("access_token").asText(null);
+            final String accessToken = tokenJson.path("access_token").asString(null);
             if (accessToken == null) {
                 throw new IllegalStateException(
                         "OIDC token response did not contain an access_token: " + tokenResponse.body());

@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.github.stefanrichterhuber</groupId>
         <artifactId>nextcloudlib-parent</artifactId>
-        <version>3.2.1-SNAPSHOT</version>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>nextcloudlib</artifactId>
     <name>Nextcloudlib - Runtime</name>
@@ -43,6 +43,12 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
         </dependency>
+        <dependency>
+            <!-- Since Quarkus 4 quarkus-devservices-deployment is a regular extension and requires its
+            runtime counterpart -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-devservices</artifactId>
+        </dependency>
 
         <dependency>
             <!-- Apache HttpClient 4 used by Sardine, with its native image support -->
@@ -51,7 +57,8 @@
         </dependency>
 
         <!-- Only the charset detection of Tika is used. The full quarkus-tika would pull in POI,
-        PDFBox and AWT, which bloat (and break) native images of every application -->
+        PDFBox and AWT, which bloat (and break) native images of every application. Since Tika 4 the
+        ICU4J based CharsetDetector lives in its own module (only depending on tika-core) -->
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
@@ -59,7 +66,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
-            <artifactId>tika-parser-text-module</artifactId>
+            <artifactId>tika-encoding-detector-icu4j</artifactId>
             <version>${tika.version}</version>
         </dependency>
         <dependency>
