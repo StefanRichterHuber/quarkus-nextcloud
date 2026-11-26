@@ -19,20 +19,22 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.DefaultNext
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvoker;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudEventInvokerSupport;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookBuildConfig;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRecorder;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookHandler;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookRegistrationService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookSecretHolder;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookStartupRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.impl.events.NextcloudWebhookEnabledRegistrar;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
+import io.quarkus.arc.ArcContainer;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
+import io.quarkus.arc.deployment.BeanContainerBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanBuildItem;
 import io.quarkus.arc.deployment.GeneratedBeanGizmoAdaptor;
 import io.quarkus.arc.deployment.SyntheticBeanBuildItem;
+import io.quarkus.core.deployment.service.ServiceRegistrar;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
-import io.quarkus.deployment.annotations.ExecutionTime;
-import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.annotations.Consume;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.GeneratedClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
@@ -44,6 +46,7 @@ import io.quarkus.gizmo.MethodDescriptor;
 import io.quarkus.gizmo.ResultHandle;
 import io.quarkus.vertx.http.deployment.HttpRootPathBuildItem;
 import io.quarkus.vertx.http.deployment.RouteBuildItem;
+import io.quarkus.vertx.http.runtime.RouteHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -257,6 +260,7 @@ class NextcloudEventProcessor {
 
         additionalBeans.produce(AdditionalBeanBuildItem.builder()
                 .addBeanClass(NextcloudWebhookSecretHolder.class)
+                .addBeanClass(NextcloudWebhookHandler.class)
                 .addBeanClass(DefaultNextcloudEventDispatcher.class)
                 .addBeanClass(NextcloudWebhookRegistrationService.class)
                 .setUnremovable()
@@ -472,14 +476,17 @@ class NextcloudEventProcessor {
         mc.returnBoolean(tokenNeeded);
     }
 
+    /** Service name of the webhook route handler */
+    private static final String WEBHOOK_HANDLER_SERVICE = "io.github.stefanrichterhuber.nextcloudlib.webhook-handler";
+
     /**
      * Registers a Vert.x route at {@code nextcloud.webhook.path} (default
      * {@code /webhook}) that forwards POST requests to
-     * {@link io.github.stefanrichterhuber.nextcloudlib.runtime.events.impl.NextcloudWebhookHandler}.
-     * Only produced when at least one {@link OnNextcloudEvent} handler exists.
+     * {@link NextcloudWebhookHandler}. Only produced when at least one
+     * {@link OnNextcloudEvent} handler exists.
      *
-     * @param recorder    Quarkus recorder used to create the handler instance at
-     *                    runtime
+     * @param services    registrar for the runtime service that creates the
+     *                    handler instance at application start
      * @param handlers    discovered handler descriptors; route is skipped when
      *                    empty
      * @param buildConfig webhook configuration providing the mount path
@@ -487,9 +494,14 @@ class NextcloudEventProcessor {
      * @param routes      producer for Vert.x route build items
      */
     @BuildStep
-    @Record(ExecutionTime.RUNTIME_INIT)
+    // RouteBuildItem only accepts recorder proxies. ServiceRegistrar#getRecorderProxy is the
+    // (deprecated) bridge for that until vertx-http offers service based routes; Quarkus
+    // itself uses it the same way (HttpSecurityProcessor).
+    @SuppressWarnings("deprecation")
+    // The handler bean is resolved from the container, so run after it was set up
+    @Consume(BeanContainerBuildItem.class)
     void registerWebhookRoute(
-            NextcloudWebhookRecorder recorder,
+            ServiceRegistrar services,
             List<NextcloudEventHandlerBuildItem> handlers,
             NextcloudWebhookBuildConfig buildConfig,
             HttpRootPathBuildItem httpRoot,
@@ -501,9 +513,15 @@ class NextcloudEventProcessor {
 
         LOG.infof("Registering Nextcloud event webhook Vert.x route at: %s", buildConfig.path());
 
+        // The lambda is copied into the application and executed at runtime, so it
+        // may only reference runtime classes
+        services.forService(RouteHandler.class, WEBHOOK_HANDLER_SERVICE)
+                .require(ArcContainer.class)
+                .onStart((ctx, arc) -> arc.instance(NextcloudWebhookHandler.class).get()::handle);
+
         routes.produce(httpRoot.routeBuilder()
                 .route(buildConfig.path() + "/*")
-                .handler(recorder.webhookHandler())
+                .handler(services.getRecorderProxy(RouteHandler.class, WEBHOOK_HANDLER_SERVICE))
                 .displayOnNotFoundPage("Nextcloud Webhook")
                 .build());
     }

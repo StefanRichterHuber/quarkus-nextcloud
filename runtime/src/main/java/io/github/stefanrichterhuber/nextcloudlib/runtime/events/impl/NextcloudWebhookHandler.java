@@ -18,8 +18,9 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.events.NextcloudEventDi
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudEvent.Event;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
-import io.quarkus.arc.Arc;
 import io.vertx.ext.web.RoutingContext;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 /**
  * Vert.x {@link io.vertx.core.Handler} that processes incoming Nextcloud
@@ -29,10 +30,9 @@ import io.vertx.ext.web.RoutingContext;
  * <p>
  * This handler is registered as a Vert.x route at the path configured by
  * {@link NextcloudWebhookBuildConfig#path()} (default {@code /webhook}).
- * It is instantiated by {@link NextcloudWebhookRecorder} at static-init time
- * and therefore cannot use constructor injection. All collaborators are
- * resolved lazily from the CDI container via {@link Arc#container()} on each
- * request.
+ * The bean is only registered when at least one {@code @OnNextcloudEvent}
+ * handler exists. It is looked up once at application start, when the route is
+ * created, and then serves all requests.
  * </p>
  *
  * <h2>Request processing</h2>
@@ -44,6 +44,7 @@ import io.vertx.ext.web.RoutingContext;
  * {@link DefaultNextcloudEventDispatcher#dispatch}.</li>
  * </ol>
  */
+@Singleton
 public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingContext> {
 
     private static final Logger LOG = Logger.getLogger(NextcloudWebhookHandler.class);
@@ -54,18 +55,14 @@ public class NextcloudWebhookHandler implements io.vertx.core.Handler<RoutingCon
     private final ObjectMapper mapper;
     private final NextcloudEventTracker eventTracker;
 
-    public NextcloudWebhookHandler() {
-        config = Arc.container().select(NextcloudWebhookConfig.class)
-                .get();
-        secretHolder = Arc.container().select(NextcloudWebhookSecretHolder.class).get();
-
-        dispatcher = Arc.container()
-                .select(NextcloudEventDispatcher.class)
-                .get();
-
-        mapper = Arc.container().select(ObjectMapper.class).get();
-
-        eventTracker = Arc.container().select(NextcloudEventTracker.class).get();
+    @Inject
+    public NextcloudWebhookHandler(NextcloudWebhookConfig config, NextcloudWebhookSecretHolder secretHolder,
+            NextcloudEventDispatcher dispatcher, ObjectMapper mapper, NextcloudEventTracker eventTracker) {
+        this.config = config;
+        this.secretHolder = secretHolder;
+        this.dispatcher = dispatcher;
+        this.mapper = mapper;
+        this.eventTracker = eventTracker;
     }
 
     /**

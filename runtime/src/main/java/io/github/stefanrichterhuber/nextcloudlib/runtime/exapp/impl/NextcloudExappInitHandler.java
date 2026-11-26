@@ -14,10 +14,11 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppApiRestClien
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.NextcloudExAppInitProgress;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
-import io.quarkus.arc.Arc;
-import io.quarkus.arc.InjectableInstance;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.vertx.ext.web.RoutingContext;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import jakarta.ws.rs.core.MediaType;
 
 /**
@@ -30,11 +31,25 @@ import jakarta.ws.rs.core.MediaType;
  * progress bean is found, its reactive stream is subscribed and each emitted
  * percentage value is forwarded to the AppAPI's {@code ex-app/status} endpoint.
  */
+@Singleton
 public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingContext> {
     private static final Logger LOG = Logger.getLogger(NextcloudExappInitHandler.class);
 
-    private final NextcloudExAppStateTracker stateTracker = Arc.container()
-            .select(NextcloudExAppStateTracker.class).get();
+    private final NextcloudExAppStateTracker stateTracker;
+    /** Request scoped, resolved on each call by its client proxy */
+    private final NextcloudAuthProvider authProvider;
+    /** Optional, provided by the application */
+    private final Instance<NextcloudExAppInitProgress> stateProviderInstance;
+    private final ScheduledExecutorService executorService;
+
+    @Inject
+    public NextcloudExappInitHandler(NextcloudExAppStateTracker stateTracker, NextcloudAuthProvider authProvider,
+            Instance<NextcloudExAppInitProgress> stateProviderInstance, ScheduledExecutorService executorService) {
+        this.stateTracker = stateTracker;
+        this.authProvider = authProvider;
+        this.stateProviderInstance = stateProviderInstance;
+        this.executorService = executorService;
+    }
 
     /**
      * Creates a new instance of {@link ExAppApiRestClient} with the configured
@@ -43,7 +58,6 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
      * @return Instance of {@link ExAppApiRestClient}
      */
     private ExAppApiRestClient getClient() {
-        final NextcloudAuthProvider authProvider = Arc.container().select(NextcloudAuthProvider.class).get();
         final ExAppApiRestClient client = QuarkusRestClientBuilder.newBuilder()
                 .baseUri(URI.create(authProvider.getServer()))
                 .followRedirects(true)
@@ -66,8 +80,6 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
         // option to not implement “/init” endpoint, so AppAPI will get 404 or 501 error
         // on it’s request, but you can consider that initialization to be done and this
         // section can be skipped.
-        final InjectableInstance<NextcloudExAppInitProgress> stateProviderInstance = Arc.container()
-                .select(NextcloudExAppInitProgress.class);
         if (!stateProviderInstance.isResolvable()) {
             LOG.debugf("No NextcloudInitStateProvider provided, short ex app init process");
             event.response().setStatusCode(StatusCode.NOT_FOUND).end();
@@ -77,7 +89,6 @@ public class NextcloudExappInitHandler implements io.vertx.core.Handler<RoutingC
         final NextcloudExAppInitProgress stateProvider = stateProviderInstance.get();
         final ExAppApiRestClient client = getClient();
         final NextcloudUserCredentials credentials = event.get(NextcloudExAppAuthHandler.PROPERTY_CREDENTIALS);
-        final ScheduledExecutorService executorService = Arc.container().select(ScheduledExecutorService.class).get();
         final Executor exec = new CredentialsAwareRequestScopedExecutor(executorService, credentials);
 
         // There is an NextcloudInitStateProvider, subscribe to the provided state

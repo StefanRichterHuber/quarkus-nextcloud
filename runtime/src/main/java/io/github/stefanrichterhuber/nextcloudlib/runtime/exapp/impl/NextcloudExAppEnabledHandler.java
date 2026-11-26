@@ -10,9 +10,10 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppDisabledEven
 import io.github.stefanrichterhuber.nextcloudlib.runtime.exapp.ExAppEnabledEvent;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.util.CredentialsAwareRequestScopedExecutor;
-import io.quarkus.arc.Arc;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.event.Event;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 
 /**
  * Vert.x handler for the {@code /enabled} ExApp lifecycle endpoint. Called by
@@ -20,17 +21,19 @@ import jakarta.enterprise.event.Event;
  * corresponding CDI {@link ExAppEnabledEvent} or {@link ExAppDisabledEvent}
  * under a request context scoped to the triggering user's credentials.
  */
+@Singleton
 public class NextcloudExAppEnabledHandler implements io.vertx.core.Handler<RoutingContext> {
 
-    ManagedExecutor executorService;
-    @SuppressWarnings("rawtypes")
-    Event ev;
-    NextcloudExAppStateTracker stateTracker;
+    private final ManagedExecutor executorService;
+    private final Event<Object> ev;
+    private final NextcloudExAppStateTracker stateTracker;
 
-    public NextcloudExAppEnabledHandler() {
-        stateTracker = Arc.container().select(NextcloudExAppStateTracker.class).get();
-        executorService = Arc.container().select(ManagedExecutor.class).get();
-        ev = Arc.container().select(Event.class).get();
+    @Inject
+    public NextcloudExAppEnabledHandler(ManagedExecutor executorService, Event<Object> ev,
+            NextcloudExAppStateTracker stateTracker) {
+        this.executorService = executorService;
+        this.ev = ev;
+        this.stateTracker = stateTracker;
     }
 
     /**
@@ -42,7 +45,6 @@ public class NextcloudExAppEnabledHandler implements io.vertx.core.Handler<Routi
      *
      * @param event the Vert.x routing context for the current request
      */
-    @SuppressWarnings({ "unchecked" })
     @Override
     public void handle(RoutingContext event) {
         final NextcloudUserCredentials credentials = event.get(NextcloudExAppAuthHandler.PROPERTY_CREDENTIALS);
